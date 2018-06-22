@@ -112,43 +112,65 @@ static intset *intsetResize(intset *is, uint32_t len) {
  * sets "pos" to the position of the value within the intset. Return 0 when
  * the value is not present in the intset and sets "pos" to the position
  * where "value" can be inserted. */
-static uint8_t intsetSearch(intset *is, int64_t value, uint32_t *pos) {
+static uint8_t intsetSearch(intset *is, int64_t value, uint32_t *pos) 
+{
     int min = 0, max = intrev32ifbe(is->length)-1, mid = -1;
     int64_t cur = -1;
 
     /* The value can never be found when the set is empty */
-    if (intrev32ifbe(is->length) == 0) {
-        if (pos) *pos = 0;
+    if (intrev32ifbe(is->length) == 0) 
+	{
+        if (pos) 
+			*pos = 0;
         return 0;
-    } else {
+    }
+	else 
+	{
         /* Check for the case where we know we cannot find the value,
          * but do know the insert position. */
-        if (value > _intsetGet(is,intrev32ifbe(is->length)-1)) {
-            if (pos) *pos = intrev32ifbe(is->length);
+        /* 若value比最大值大或比最小值小 */
+        if (value > _intsetGet(is,intrev32ifbe(is->length)-1)) 
+		{
+            if (pos) 
+				*pos = intrev32ifbe(is->length);
             return 0;
-        } else if (value < _intsetGet(is,0)) {
-            if (pos) *pos = 0;
+        }
+		else if (value < _intsetGet(is,0)) 
+		{
+            if (pos) 
+				*pos = 0;
             return 0;
         }
     }
 
-    while(max >= min) {
+    while(max >= min) 
+	{
         mid = ((unsigned int)min + (unsigned int)max) >> 1;
         cur = _intsetGet(is,mid);
-        if (value > cur) {
+        if (value > cur) 
+		{
             min = mid+1;
-        } else if (value < cur) {
+        } 
+		else if (value < cur) 
+		{
             max = mid-1;
-        } else {
+        } 
+		else 
+		{
             break;
         }
     }
 
-    if (value == cur) {
-        if (pos) *pos = mid;
+    if (value == cur) 
+	{
+        if (pos) 
+			*pos = mid;
         return 1;
-    } else {
-        if (pos) *pos = min;
+    } 
+	else 
+	{
+        if (pos) 
+			*pos = min;
         return 0;
     }
 }
