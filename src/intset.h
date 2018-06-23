@@ -34,7 +34,7 @@
 
 typedef struct intset {
     uint32_t encoding;
-    uint32_t length;
+    uint32_t length;		//一共有多少元素，是元素的个数
     int8_t contents[];
 } intset;
 

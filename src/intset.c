@@ -80,7 +80,7 @@ static int64_t _intsetGetEncoded(intset *is, int pos, uint8_t enc)
 
 /* Return the value at pos, using the configured encoding. */
 static int64_t _intsetGet(intset *is, int pos) {
-    return _intsetGetEncoded(is,pos,intrev32ifbe(is->encoding));
+    return _intsetGetEncoded(is, pos, intrev32ifbe(is->encoding));
 }
 
 /* Set the value at pos, using the configured encoding. */
@@ -109,8 +109,8 @@ intset *intsetNew(void) {
 
 /* Resize the intset */
 static intset *intsetResize(intset *is, uint32_t len) {
-    uint32_t size = len*intrev32ifbe(is->encoding);
-    is = zrealloc(is,sizeof(intset)+size);
+    uint32_t size = len * intrev32ifbe(is->encoding);
+    is = zrealloc(is, sizeof(intset)+ size);
     return is;
 }
 
@@ -120,7 +120,7 @@ static intset *intsetResize(intset *is, uint32_t len) {
  * where "value" can be inserted. */
 static uint8_t intsetSearch(intset *is, int64_t value, uint32_t *pos) 
 {
-    int min = 0, max = intrev32ifbe(is->length)-1, mid = -1;
+    int min = 0, max = intrev32ifbe(is->length) - 1, mid = -1;
     int64_t cur = -1;
 
     /* The value can never be found when the set is empty */
@@ -135,13 +135,13 @@ static uint8_t intsetSearch(intset *is, int64_t value, uint32_t *pos)
         /* Check for the case where we know we cannot find the value,
          * but do know the insert position. */
         /* 若value比最大值大或比最小值小 */
-        if (value > _intsetGet(is,intrev32ifbe(is->length)-1)) 
+        if (value > _intsetGet(is, intrev32ifbe(is->length) - 1)) 
 		{
             if (pos) 
 				*pos = intrev32ifbe(is->length);
             return 0;
         }
-		else if (value < _intsetGet(is,0)) 
+		else if (value < _intsetGet(is, 0)) 
 		{
             if (pos) 
 				*pos = 0;
@@ -149,17 +149,18 @@ static uint8_t intsetSearch(intset *is, int64_t value, uint32_t *pos)
         }
     }
 
-    while(max >= min) 
+	/* 二分查找 */
+    while (max >= min) 
 	{
         mid = ((unsigned int)min + (unsigned int)max) >> 1;
-        cur = _intsetGet(is,mid);
+        cur = _intsetGet(is, mid);
         if (value > cur) 
 		{
-            min = mid+1;
+            min = mid + 1;
         } 
 		else if (value < cur) 
 		{
-            max = mid-1;
+            max = mid - 1;
         } 
 		else 
 		{
@@ -182,7 +183,8 @@ static uint8_t intsetSearch(intset *is, int64_t value, uint32_t *pos)
 }
 
 /* Upgrades the intset to a larger encoding and inserts the given integer. */
-static intset *intsetUpgradeAndAdd(intset *is, int64_t value) {
+static intset *intsetUpgradeAndAdd(intset *is, int64_t value) 
+{
     uint8_t curenc = intrev32ifbe(is->encoding);
     uint8_t newenc = _intsetValueEncoding(value);
     int length = intrev32ifbe(is->length);
@@ -190,42 +192,49 @@ static intset *intsetUpgradeAndAdd(intset *is, int64_t value) {
 
     /* First set new encoding and resize */
     is->encoding = intrev32ifbe(newenc);
-    is = intsetResize(is,intrev32ifbe(is->length)+1);
+    is = intsetResize(is, intrev32ifbe(is->length) + 1);
 
     /* Upgrade back-to-front so we don't overwrite values.
      * Note that the "prepend" variable is used to make sure we have an empty
      * space at either the beginning or the end of the intset. */
     while(length--)
-        _intsetSet(is,length+prepend,_intsetGetEncoded(is,length,curenc));
+        _intsetSet(is, length + prepend, _intsetGetEncoded(is, length, curenc));
 
     /* Set the value at the beginning or the end. */
     if (prepend)
-        _intsetSet(is,0,value);
+        _intsetSet(is, 0, value);
     else
-        _intsetSet(is,intrev32ifbe(is->length),value);
-    is->length = intrev32ifbe(intrev32ifbe(is->length)+1);
+        _intsetSet(is, intrev32ifbe(is->length), value);
+	
+    is->length = intrev32ifbe(intrev32ifbe(is->length) + 1);
     return is;
 }
 
 static void intsetMoveTail(intset *is, uint32_t from, uint32_t to) {
     void *src, *dst;
-    uint32_t bytes = intrev32ifbe(is->length)-from;
+    uint32_t bytes = intrev32ifbe(is->length) - from;
     uint32_t encoding = intrev32ifbe(is->encoding);
 
-    if (encoding == INTSET_ENC_INT64) {
-        src = (int64_t*)is->contents+from;
-        dst = (int64_t*)is->contents+to;
+    if (encoding == INTSET_ENC_INT64) 
+	{
+        src = (int64_t*)is->contents + from;
+        dst = (int64_t*)is->contents + to;
         bytes *= sizeof(int64_t);
-    } else if (encoding == INTSET_ENC_INT32) {
-        src = (int32_t*)is->contents+from;
-        dst = (int32_t*)is->contents+to;
+    } 
+	else if (encoding == INTSET_ENC_INT32) 
+	{
+        src = (int32_t*)is->contents + from;
+        dst = (int32_t*)is->contents + to;
         bytes *= sizeof(int32_t);
-    } else {
-        src = (int16_t*)is->contents+from;
-        dst = (int16_t*)is->contents+to;
+    } 
+	else 
+	{
+        src = (int16_t*)is->contents + from;
+        dst = (int16_t*)is->contents + to;
         bytes *= sizeof(int16_t);
     }
-    memmove(dst,src,bytes);
+	
+    memmove(dst, src, bytes);
 }
 
 /* Insert an integer in the intset */
@@ -264,6 +273,7 @@ intset *intsetRemove(intset *is, int64_t value, int *success) {
     uint32_t pos;
     if (success) *success = 0;
 
+	/* 若value的编码方式更大，那么不需要删除了，一定不在intset中 */
     if (valenc <= intrev32ifbe(is->encoding) && intsetSearch(is,value,&pos)) {
         uint32_t len = intrev32ifbe(is->length);
 
