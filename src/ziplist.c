@@ -706,7 +706,8 @@ unsigned char *__ziplistDelete(unsigned char *zl, unsigned char *p, unsigned int
     zlentry first, tail;
 
     zipEntry(p, &first);
-    for (i = 0; p[0] != ZIP_END && i < num; i++) {
+    for (i = 0; p[0] != ZIP_END && i < num; i++) 
+	{
         p += zipRawEntryLength(p);
         deleted++;
     }
