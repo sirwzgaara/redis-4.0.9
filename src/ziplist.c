@@ -618,7 +618,7 @@ void zipEntry(unsigned char *p, zlentry *e) {
 /* Create a new empty ziplist. */
 unsigned char *ziplistNew(void) 
 {
-    unsigned int bytes = ZIPLIST_HEADER_SIZE + 1;
+    unsigned int bytes = ZIPLIST_HEADER_SIZE + 1;	//长度是头加上end的1个字节
     unsigned char *zl = zmalloc(bytes);
     ZIPLIST_BYTES(zl) = intrev32ifbe(bytes);
     ZIPLIST_TAIL_OFFSET(zl) = intrev32ifbe(ZIPLIST_HEADER_SIZE);
@@ -658,8 +658,8 @@ unsigned char *ziplistResize(unsigned char *zl, unsigned int len) {
  * updated, i.e. consecutive fields MAY need an update. */
 unsigned char *__ziplistCascadeUpdate
 (
-	unsigned char *zl, 
-	unsigned char *p
+	unsigned char *zl, 		//指向一个ziplist的起始地址
+	unsigned char *p		//第一个需要被更新的entry
 ) 
 {
     size_t curlen = intrev32ifbe(ZIPLIST_BYTES(zl)), rawlen, rawlensize;
@@ -670,26 +670,30 @@ unsigned char *__ziplistCascadeUpdate
     while (p[0] != ZIP_END) 
 	{
         zipEntry(p, &cur);
-        rawlen = cur.headersize + cur.len;
-        rawlensize = zipStorePrevEntryLength(NULL, rawlen);
+        rawlen = cur.headersize + cur.len;		//这个entry的总长度
+        rawlensize = zipStorePrevEntryLength(NULL, rawlen);		//下一个entry的prevlen字段的字节数
 
         /* Abort if there is no next entry. */
         if (p[rawlen] == ZIP_END) 
 			break;
-		
+
+		/* 获取下一个entry */
         zipEntry(p + rawlen, &next);
 
         /* Abort when "prevlen" has not changed. */
+		/* 若这个entry的长度没改，就不用继续了 */
         if (next.prevrawlen == rawlen) 
 			break;
 
+		/* 若下一个entry的prevlen需要扩张 */
         if (next.prevrawlensize < rawlensize) 
 		{
             /* The "prevlen" field of "next" needs more bytes to hold
              * the raw length of "cur". */
             offset = p - zl;
-            extra = rawlensize - next.prevrawlensize;
+            extra = rawlensize - next.prevrawlensize;	//要增加的话其实就是4个字节
             zl = ziplistResize(zl, curlen + extra);
+			/* resize中有realloc，可能发生堆中的移动，所以需要重新找p的地址 */
             p = zl + offset;
  
             /* Current pointer and offset for next element. */
@@ -706,7 +710,7 @@ unsigned char *__ziplistCascadeUpdate
             /* Move the tail to the back. */
             memmove(np + rawlensize, np + next.prevrawlensize,
                 curlen - noffset - next.prevrawlensize - 1);
-            zipStorePrevEntryLength(np,rawlen);
+            zipStorePrevEntryLength(np, rawlen);
 
             /* Advance the cursor */
             p += rawlen;
@@ -718,6 +722,7 @@ unsigned char *__ziplistCascadeUpdate
 			{
                 /* This would result in shrinking, which we want to avoid.
                  * So, set "rawlen" in the available bytes. */
+                /* 为了防止萎缩，即使比254小，也使用large的5字节编码 */
                 zipStorePrevEntryLengthLarge(p + rawlen, rawlen);
             } 
 			else 
