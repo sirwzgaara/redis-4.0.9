@@ -199,8 +199,8 @@
                                representing the previous entry len. */
 
 /* Different encoding/length possibilities */
-#define ZIP_STR_MASK 0xc0			//string类型掩码
-#define ZIP_INT_MASK 0x30			//number类型掩码
+#define ZIP_STR_MASK 0xc0			//string类型掩码，根据前2个bit判断string类型
+#define ZIP_INT_MASK 0x30			//number类型掩码，根据3所在的2个bit判断number类型
 #define ZIP_STR_06B (0 << 6)		//6bit string
 #define ZIP_STR_14B (1 << 6)		//14bit string
 #define ZIP_STR_32B (2 << 6)		//32bit string
@@ -230,6 +230,7 @@
 #define ZIPLIST_BYTES(zl)       (*((uint32_t*)(zl)))
 
 /* Return the offset of the last item inside the ziplist. */
+/* zl是ziplist的起始地址，加上一个uint_32的长度就是下一个字段 */
 #define ZIPLIST_TAIL_OFFSET(zl) (*((uint32_t*)((zl) + sizeof(uint32_t))))
 
 /* Return the length of a ziplist, or UINT16_MAX if the length cannot be
@@ -245,10 +246,12 @@
 #define ZIPLIST_END_SIZE        (sizeof(uint8_t))
 
 /* Return the pointer to the first entry of a ziplist. */
+/* 得到第一个entry的地址 */
 #define ZIPLIST_ENTRY_HEAD(zl)  ((zl) + ZIPLIST_HEADER_SIZE)
 
 /* Return the pointer to the last entry of a ziplist, using the
  * last entry offset inside the ziplist header. */
+/* 是小端保存的，在大端环境要进行一个转换 */
 #define ZIPLIST_ENTRY_TAIL(zl)  ((zl) + intrev32ifbe(ZIPLIST_TAIL_OFFSET(zl)))
 
 /* Return the pointer to the last byte of a ziplist, which is, the
@@ -260,6 +263,7 @@
  * always pushed one at a time. When UINT16_MAX is reached we want the count
  * to stay there to signal that a full scan is needed to get the number of
  * items inside the ziplist. */
+/* 每次只增加一个，所以不会溢出 */
 #define ZIPLIST_INCR_LENGTH(zl, incr) { \
     if (ZIPLIST_LENGTH(zl) < UINT16_MAX) \
         ZIPLIST_LENGTH(zl) = intrev16ifbe(intrev16ifbe(ZIPLIST_LENGTH(zl)) + incr); \
