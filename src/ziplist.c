@@ -791,6 +791,7 @@ unsigned char *__ziplistDelete
             }
 
             /* Move tail to the front of the ziplist */
+			/* 这里不移动end，在resize的时候会给end赋值 */
             memmove(first.p, p,
                 intrev32ifbe(ZIPLIST_BYTES(zl)) - (p - zl) - 1);
         } 
@@ -820,14 +821,14 @@ unsigned char *__ziplistDelete
 Func Name :   main
 Date Created: 2018/07/02
 Author:  	  wangzhe
-Description:  Insert item at "p"
+Description:  在p指向的地址插入一个entry
 Input:	      IN unisgned char * zl		pointer at ziplist
-			  IN unsigned char *p
-			  IN unsigned char * s
-			  IN unsigned int slen
+			  IN unsigned char *p		insert at p
+			  IN unsigned char * s		pointer at an entry
+			  IN unsigned int slen		length of the entry pointed by s
 Output:		         
 Return:       unsigned char *
-Caution : 
+Caution : 	  s是要插入的entry和这个entry的长度，p是要插入的位置，zl是ziplist头
 *********************************************************************/
 unsigned char *__ziplistInsert
 (
@@ -855,6 +856,7 @@ unsigned char *__ziplistInsert
 	else 
 	{
         unsigned char *ptail = ZIPLIST_ENTRY_TAIL(zl);
+		/* 一个entry都没有的时候 */
         if (ptail[0] != ZIP_END) 
 		{
             prevlen = zipRawEntryLength(ptail);
@@ -1173,7 +1175,7 @@ unsigned char *ziplistInsert(unsigned char *zl, unsigned char *p, unsigned char 
  * Also update *p in place, to be able to iterate over the
  * ziplist, while deleting entries. */
 unsigned char *ziplistDelete(unsigned char *zl, unsigned char **p) {
-    size_t offset = *p-zl;
+    size_t offset = *p - zl;
     zl = __ziplistDelete(zl,*p,1);
 
     /* Store pointer to current element in p, because ziplistDelete will
