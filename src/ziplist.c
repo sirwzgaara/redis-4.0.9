@@ -708,6 +708,7 @@ unsigned char *__ziplistCascadeUpdate
             }
 
             /* Move the tail to the back. */
+			/* 这里不包括end字段，因为resize的时候end字段已经赋值了 */
             memmove(np + rawlensize, np + next.prevrawlensize,
                 curlen - noffset - next.prevrawlensize - 1);
             zipStorePrevEntryLength(np, rawlen);
@@ -727,6 +728,7 @@ unsigned char *__ziplistCascadeUpdate
             } 
 			else 
 			{
+				/* 字节数相等，直接改长度就行 */
                 zipStorePrevEntryLength(p + rawlen, rawlen);
             }
 
@@ -751,6 +753,7 @@ unsigned char *__ziplistDelete
     int nextdiff = 0;
     zlentry first, tail;
 
+	/* 用first固定起始entry的位置 */
     zipEntry(p, &first);
     for (i = 0; p[0] != ZIP_END && i < num; i++) 
 	{
@@ -767,6 +770,7 @@ unsigned char *__ziplistDelete
              * number of bytes required compare to the current `prevrawlen`.
              * There always is room to store this, because it was previously
              * stored by an entry that is now being deleted. */
+            /* 这个diff可能是负值 */
             nextdiff = zipPrevLenByteDiff(p, first.prevrawlen);
 
             /* Note that there is always space when p jumps backward: if
@@ -856,7 +860,7 @@ unsigned char *__ziplistInsert
 	else 
 	{
         unsigned char *ptail = ZIPLIST_ENTRY_TAIL(zl);
-		/* 一个entry都没有的时候 */
+		/* 一个entry都没有的时候tail会指向end */
         if (ptail[0] != ZIP_END) 
 		{
             prevlen = zipRawEntryLength(ptail);
@@ -877,6 +881,7 @@ unsigned char *__ziplistInsert
     }
     /* We need space for both the length of the previous entry and
      * the length of the payload. */
+    /* 加完之后reqlen就是这个entry的总长度 */
     reqlen += zipStorePrevEntryLength(NULL, prevlen);
     reqlen += zipStoreEntryEncoding(NULL, encoding, slen);
 
@@ -900,7 +905,7 @@ unsigned char *__ziplistInsert
     if (p[0] != ZIP_END) 
 	{
         /* Subtract one because of the ZIP_END bytes */
-        memmove(p + reqlen,p - nextdiff,curlen - offset - 1 + nextdiff);
+        memmove(p + reqlen, p - nextdiff, curlen - offset - 1 + nextdiff);
 
         /* Encode this entry's raw length in the next entry. */
         if (forcelarge)
@@ -925,7 +930,7 @@ unsigned char *__ziplistInsert
 	else 
 	{
         /* This element will be the new tail. */
-        ZIPLIST_TAIL_OFFSET(zl) = intrev32ifbe(p-zl);
+        ZIPLIST_TAIL_OFFSET(zl) = intrev32ifbe(p - zl);
     }
 
     /* When nextdiff != 0, the raw length of the next entry has changed, so
@@ -969,7 +974,12 @@ unsigned char *__ziplistInsert
  * On success: returns the merged ziplist (which is expanded version of either
  * 'first' or 'second', also frees the other unused input ziplist, and sets the
  * input ziplist argument equal to newly reallocated ziplist return value. */
-unsigned char *ziplistMerge(unsigned char **first, unsigned char **second) {
+unsigned char *ziplistMerge
+(
+	unsigned char **first, 
+	unsigned char **second
+) 
+{
     /* If any params are null, we can't merge, so NULL. */
     if (first == NULL || *first == NULL || second == NULL || *second == NULL)
         return NULL;
@@ -987,23 +997,27 @@ unsigned char *ziplistMerge(unsigned char **first, unsigned char **second) {
     int append;
     unsigned char *source, *target;
     size_t target_bytes, source_bytes;
+	
     /* Pick the largest ziplist so we can resize easily in-place.
      * We must also track if we are now appending or prepending to
      * the target ziplist. */
-    if (first_len >= second_len) {
+    if (first_len >= second_len) 
+	{
         /* retain first, append second to first. */
-        target = *first;
+        target 		 = *first;
         target_bytes = first_bytes;
-        source = *second;
+        source 		 = *second;
         source_bytes = second_bytes;
-        append = 1;
-    } else {
+        append 		 = 1;
+    } 
+	else 
+	{
         /* else, retain second, prepend first to second. */
-        target = *second;
+        target 		 = *second;
         target_bytes = second_bytes;
-        source = *first;
+        source		 = *first;
         source_bytes = first_bytes;
-        append = 0;
+        append 		 = 0;
     }
 
     /* Calculate final bytes (subtract one pair of metadata) */
@@ -1020,14 +1034,18 @@ unsigned char *ziplistMerge(unsigned char **first, unsigned char **second) {
 
     /* Extend target to new zlbytes then append or prepend source. */
     target = zrealloc(target, zlbytes);
-    if (append) {
+    if (append) 
+	{
         /* append == appending to target */
         /* Copy source after target (copying over original [END]):
          *   [TARGET - END, SOURCE - HEADER] */
         memcpy(target + target_bytes - ZIPLIST_END_SIZE,
                source + ZIPLIST_HEADER_SIZE,
                source_bytes - ZIPLIST_HEADER_SIZE);
-    } else {
+    } 
+	else 
+	{
+		/* 这样搞的目的是永远让first处在前面 */
         /* !append == prepending to target */
         /* Move target *contents* exactly size of (source - [END]),
          * then copy source into vacataed space (source - [END]):
@@ -1054,49 +1072,70 @@ unsigned char *ziplistMerge(unsigned char **first, unsigned char **second) {
      * correct prev length value (then it assumes the rest of the list is okay).
      * We tell CascadeUpdate to start at the first ziplist's tail element to fix
      * the merge seam. */
-    target = __ziplistCascadeUpdate(target, target+first_offset);
+    /* target的最后一个entry是第一个不需要更新的entry */
+    target = __ziplistCascadeUpdate(target, target + first_offset);
 
     /* Now free and NULL out what we didn't realloc */
-    if (append) {
+    if (append) 
+	{
         zfree(*second);
         *second = NULL;
-        *first = target;
-    } else {
+        *first  = target;
+    }
+	else 
+	{
         zfree(*first);
-        *first = NULL;
+        *first  = NULL;
         *second = target;
     }
+	
     return target;
 }
 
-unsigned char *ziplistPush(unsigned char *zl, unsigned char *s, unsigned int slen, int where) {
+unsigned char *ziplistPush
+(
+	unsigned char *zl, 
+	unsigned char *s, 
+	unsigned int slen, 
+	int where
+) 
+{
     unsigned char *p;
     p = (where == ZIPLIST_HEAD) ? ZIPLIST_ENTRY_HEAD(zl) : ZIPLIST_ENTRY_END(zl);
-    return __ziplistInsert(zl,p,s,slen);
+	
+    return __ziplistInsert(zl, p, s, slen);
 }
 
 /* Returns an offset to use for iterating with ziplistNext. When the given
  * index is negative, the list is traversed back to front. When the list
  * doesn't contain an element at the provided index, NULL is returned. */
-unsigned char *ziplistIndex(unsigned char *zl, int index) {
+unsigned char *ziplistIndex(unsigned char *zl, int index) 
+{
     unsigned char *p;
     unsigned int prevlensize, prevlen = 0;
-    if (index < 0) {
-        index = (-index)-1;
+    if (index < 0) 
+	{
+        index = (-index) - 1;
         p = ZIPLIST_ENTRY_TAIL(zl);
-        if (p[0] != ZIP_END) {
+        if (p[0] != ZIP_END) 
+		{
             ZIP_DECODE_PREVLEN(p, prevlensize, prevlen);
-            while (prevlen > 0 && index--) {
+            while (prevlen > 0 && index--) 
+			{
                 p -= prevlen;
                 ZIP_DECODE_PREVLEN(p, prevlensize, prevlen);
             }
         }
-    } else {
+    }
+	else 
+	{
         p = ZIPLIST_ENTRY_HEAD(zl);
-        while (p[0] != ZIP_END && index--) {
+        while (p[0] != ZIP_END && index--) 
+		{
             p += zipRawEntryLength(p);
         }
     }
+	
     return (p[0] == ZIP_END || index > 0) ? NULL : p;
 }
 
@@ -1106,18 +1145,21 @@ unsigned char *ziplistIndex(unsigned char *zl, int index) {
  * p is the pointer to the current element
  *
  * The element after 'p' is returned, otherwise NULL if we are at the end. */
-unsigned char *ziplistNext(unsigned char *zl, unsigned char *p) {
+unsigned char *ziplistNext(unsigned char *zl, unsigned char *p) 
+{
     ((void) zl);
 
     /* "p" could be equal to ZIP_END, caused by ziplistDelete,
      * and we should return NULL. Otherwise, we should return NULL
      * when the *next* element is ZIP_END (there is no next entry). */
-    if (p[0] == ZIP_END) {
+    if (p[0] == ZIP_END) 
+	{
         return NULL;
     }
 
     p += zipRawEntryLength(p);
-    if (p[0] == ZIP_END) {
+    if (p[0] == ZIP_END) 
+	{
         return NULL;
     }
 
@@ -1125,21 +1167,27 @@ unsigned char *ziplistNext(unsigned char *zl, unsigned char *p) {
 }
 
 /* Return pointer to previous entry in ziplist. */
-unsigned char *ziplistPrev(unsigned char *zl, unsigned char *p) {
+unsigned char *ziplistPrev(unsigned char *zl, unsigned char *p) 
+{
     unsigned int prevlensize, prevlen = 0;
 
     /* Iterating backwards from ZIP_END should return the tail. When "p" is
      * equal to the first element of the list, we're already at the head,
      * and should return NULL. */
-    if (p[0] == ZIP_END) {
+    if (p[0] == ZIP_END) 
+	{
         p = ZIPLIST_ENTRY_TAIL(zl);
         return (p[0] == ZIP_END) ? NULL : p;
-    } else if (p == ZIPLIST_ENTRY_HEAD(zl)) {
+    } 
+	else if (p == ZIPLIST_ENTRY_HEAD(zl)) 
+	{
         return NULL;
-    } else {
+    } 
+	else 
+	{
         ZIP_DECODE_PREVLEN(p, prevlensize, prevlen);
         assert(prevlen > 0);
-        return p-prevlen;
+        return p - prevlen;
     }
 }
 
@@ -1147,22 +1195,39 @@ unsigned char *ziplistPrev(unsigned char *zl, unsigned char *p) {
  * on the encoding of the entry. '*sstr' is always set to NULL to be able
  * to find out whether the string pointer or the integer value was set.
  * Return 0 if 'p' points to the end of the ziplist, 1 otherwise. */
-unsigned int ziplistGet(unsigned char *p, unsigned char **sstr, unsigned int *slen, long long *sval) {
+unsigned int ziplistGet
+(
+	unsigned char *p, 
+	unsigned char **sstr, 
+	unsigned int *slen,
+	long long *sval
+) 
+{
     zlentry entry;
-    if (p == NULL || p[0] == ZIP_END) return 0;
-    if (sstr) *sstr = NULL;
+	
+    if (p == NULL || p[0] == ZIP_END) 
+		return 0;
+	
+    if (sstr) 
+		*sstr = NULL;
 
     zipEntry(p, &entry);
-    if (ZIP_IS_STR(entry.encoding)) {
-        if (sstr) {
+    if (ZIP_IS_STR(entry.encoding)) 
+	{
+        if (sstr) 
+		{
             *slen = entry.len;
-            *sstr = p+entry.headersize;
+            *sstr = p + entry.headersize;
         }
-    } else {
-        if (sval) {
-            *sval = zipLoadInteger(p+entry.headersize,entry.encoding);
+    } 
+	else 
+	{
+        if (sval) 
+		{
+            *sval = zipLoadInteger(p + entry.headersize, entry.encoding);
         }
     }
+	
     return 1;
 }
 
@@ -1176,57 +1241,75 @@ unsigned char *ziplistInsert(unsigned char *zl, unsigned char *p, unsigned char 
  * ziplist, while deleting entries. */
 unsigned char *ziplistDelete(unsigned char *zl, unsigned char **p) {
     size_t offset = *p - zl;
-    zl = __ziplistDelete(zl,*p,1);
+    zl = __ziplistDelete(zl, *p, 1);
 
     /* Store pointer to current element in p, because ziplistDelete will
      * do a realloc which might result in a different "zl"-pointer.
      * When the delete direction is back to front, we might delete the last
      * entry and end up with "p" pointing to ZIP_END, so check this. */
-    *p = zl+offset;
+    *p = zl + offset;
     return zl;
 }
 
 /* Delete a range of entries from the ziplist. */
 unsigned char *ziplistDeleteRange(unsigned char *zl, int index, unsigned int num) {
-    unsigned char *p = ziplistIndex(zl,index);
-    return (p == NULL) ? zl : __ziplistDelete(zl,p,num);
+    unsigned char *p = ziplistIndex(zl, index);
+    return (p == NULL) ? zl : __ziplistDelete(zl, p, num);
 }
 
 /* Compare entry pointer to by 'p' with 'sstr' of length 'slen'. */
 /* Return 1 if equal. */
-unsigned int ziplistCompare(unsigned char *p, unsigned char *sstr, unsigned int slen) {
+unsigned int ziplistCompare(unsigned char *p, unsigned char *sstr, unsigned int slen) 
+{
     zlentry entry;
     unsigned char sencoding;
     long long zval, sval;
-    if (p[0] == ZIP_END) return 0;
+    if (p[0] == ZIP_END) 
+		return 0;
 
     zipEntry(p, &entry);
-    if (ZIP_IS_STR(entry.encoding)) {
+    if (ZIP_IS_STR(entry.encoding)) 
+	{
         /* Raw compare */
-        if (entry.len == slen) {
-            return memcmp(p+entry.headersize,sstr,slen) == 0;
-        } else {
+        if (entry.len == slen) 
+		{
+            return memcmp(p + entry.headersize, sstr, slen) == 0;
+        } 
+		else 
+		{
             return 0;
         }
-    } else {
+    } 
+	else 
+	{
         /* Try to compare encoded values. Don't compare encoding because
          * different implementations may encoded integers differently. */
-        if (zipTryEncoding(sstr,slen,&sval,&sencoding)) {
-          zval = zipLoadInteger(p+entry.headersize,entry.encoding);
+        if (zipTryEncoding(sstr, slen, &sval, &sencoding)) 
+		{
+          zval = zipLoadInteger(p + entry.headersize, entry.encoding);
           return zval == sval;
         }
     }
+	
     return 0;
 }
 
 /* Find pointer to the entry equal to the specified entry. Skip 'skip' entries
  * between every comparison. Returns NULL when the field could not be found. */
-unsigned char *ziplistFind(unsigned char *p, unsigned char *vstr, unsigned int vlen, unsigned int skip) {
+unsigned char *ziplistFind
+(
+	unsigned char *p, 
+	unsigned char *vstr, 
+	unsigned int vlen, 
+	unsigned int skip
+) 
+{
     int skipcnt = 0;
     unsigned char vencoding = 0;
     long long vll = 0;
 
-    while (p[0] != ZIP_END) {
+    while (p[0] != ZIP_END) 
+	{
         unsigned int prevlensize, encoding, lensize, len;
         unsigned char *q;
 
@@ -1234,18 +1317,25 @@ unsigned char *ziplistFind(unsigned char *p, unsigned char *vstr, unsigned int v
         ZIP_DECODE_LENGTH(p + prevlensize, encoding, lensize, len);
         q = p + prevlensize + lensize;
 
-        if (skipcnt == 0) {
+        if (skipcnt == 0) 
+		{
             /* Compare current entry with specified entry */
-            if (ZIP_IS_STR(encoding)) {
-                if (len == vlen && memcmp(q, vstr, vlen) == 0) {
+            if (ZIP_IS_STR(encoding)) 
+			{
+                if (len == vlen && memcmp(q, vstr, vlen) == 0) 
+				{
                     return p;
                 }
-            } else {
+            } 
+			else 
+			{
                 /* Find out if the searched field can be encoded. Note that
                  * we do it only the first time, once done vencoding is set
                  * to non-zero and vll is set to the integer value. */
-                if (vencoding == 0) {
-                    if (!zipTryEncoding(vstr, vlen, &vll, &vencoding)) {
+                if (vencoding == 0) 
+				{
+                    if (!zipTryEncoding(vstr, vlen, &vll, &vencoding)) 
+					{
                         /* If the entry can't be encoded we set it to
                          * UCHAR_MAX so that we don't retry again the next
                          * time. */
@@ -1258,9 +1348,11 @@ unsigned char *ziplistFind(unsigned char *p, unsigned char *vstr, unsigned int v
                 /* Compare current entry with specified entry, do it only
                  * if vencoding != UCHAR_MAX because if there is no encoding
                  * possible for the field it can't be a valid integer. */
-                if (vencoding != UCHAR_MAX) {
+                if (vencoding != UCHAR_MAX) 
+				{
                     long long ll = zipLoadInteger(q, encoding);
-                    if (ll == vll) {
+                    if (ll == vll) 
+					{
                         return p;
                     }
                 }
@@ -1268,7 +1360,9 @@ unsigned char *ziplistFind(unsigned char *p, unsigned char *vstr, unsigned int v
 
             /* Reset skip count */
             skipcnt = skip;
-        } else {
+        }
+		else 
+		{
             /* Skip entry */
             skipcnt--;
         }
@@ -1281,20 +1375,27 @@ unsigned char *ziplistFind(unsigned char *p, unsigned char *vstr, unsigned int v
 }
 
 /* Return length of ziplist. */
-unsigned int ziplistLen(unsigned char *zl) {
+unsigned int ziplistLen(unsigned char *zl) 
+{
     unsigned int len = 0;
-    if (intrev16ifbe(ZIPLIST_LENGTH(zl)) < UINT16_MAX) {
+    if (intrev16ifbe(ZIPLIST_LENGTH(zl)) < UINT16_MAX) 
+	{
         len = intrev16ifbe(ZIPLIST_LENGTH(zl));
-    } else {
-        unsigned char *p = zl+ZIPLIST_HEADER_SIZE;
-        while (*p != ZIP_END) {
+    } 
+	else 
+	{
+        unsigned char *p = zl + ZIPLIST_HEADER_SIZE;
+        while (*p != ZIP_END) 
+		{
             p += zipRawEntryLength(p);
             len++;
         }
 
         /* Re-store length if small enough */
-        if (len < UINT16_MAX) ZIPLIST_LENGTH(zl) = intrev16ifbe(len);
+        if (len < UINT16_MAX) 
+			ZIPLIST_LENGTH(zl) = intrev16ifbe(len);
     }
+	
     return len;
 }
 
