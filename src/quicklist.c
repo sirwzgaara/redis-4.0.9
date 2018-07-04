@@ -386,22 +386,33 @@ REDIS_STATIC void __quicklistCompress
  * Insert 'new_node' before 'old_node' if 'after' is 0.
  * Note: 'new_node' is *always* uncompressed, so if we assign it to
  *       head or tail, we do not need to uncompress it. */
-REDIS_STATIC void __quicklistInsertNode(quicklist *quicklist,
-                                        quicklistNode *old_node,
-                                        quicklistNode *new_node, int after) {
-    if (after) {
+REDIS_STATIC void __quicklistInsertNode
+(
+	quicklist *quicklist,
+    quicklistNode *old_node,
+    quicklistNode *new_node, 
+    int after
+) 
+{
+    if (after) 
+	{
         new_node->prev = old_node;
-        if (old_node) {
+        if (old_node) 
+		{
             new_node->next = old_node->next;
             if (old_node->next)
                 old_node->next->prev = new_node;
             old_node->next = new_node;
         }
+		
         if (quicklist->tail == old_node)
             quicklist->tail = new_node;
-    } else {
+    }
+	else 
+	{
         new_node->next = old_node;
-        if (old_node) {
+        if (old_node) 
+		{
             new_node->prev = old_node->prev;
             if (old_node->prev)
                 old_node->prev->next = new_node;
@@ -411,7 +422,8 @@ REDIS_STATIC void __quicklistInsertNode(quicklist *quicklist,
             quicklist->head = new_node;
     }
     /* If this insert creates the only element so far, initialize head/tail. */
-    if (quicklist->len == 0) {
+    if (quicklist->len == 0) 
+	{
         quicklist->head = quicklist->tail = new_node;
     }
 
@@ -434,28 +446,42 @@ REDIS_STATIC void _quicklistInsertNodeAfter(quicklist *quicklist,
     __quicklistInsertNode(quicklist, old_node, new_node, 1);
 }
 
-REDIS_STATIC int
-_quicklistNodeSizeMeetsOptimizationRequirement(const size_t sz,
-                                               const int fill) {
+REDIS_STATIC int _quicklistNodeSizeMeetsOptimizationRequirement
+(
+	const size_t sz,
+    const int fill
+) 
+{
     if (fill >= 0)
         return 0;
 
     size_t offset = (-fill) - 1;
-    if (offset < (sizeof(optimization_level) / sizeof(*optimization_level))) {
-        if (sz <= optimization_level[offset]) {
+	
+    if (offset < (sizeof(optimization_level) / sizeof(*optimization_level))) 
+	{
+        if (sz <= optimization_level[offset]) 
+		{
             return 1;
-        } else {
+        } 
+		else 
+		{
             return 0;
         }
-    } else {
+    } 
+	else 
+	{
         return 0;
     }
 }
 
 #define sizeMeetsSafetyLimit(sz) ((sz) <= SIZE_SAFETY_LIMIT)
 
-REDIS_STATIC int _quicklistNodeAllowInsert(const quicklistNode *node,
-                                           const int fill, const size_t sz) {
+REDIS_STATIC int _quicklistNodeAllowInsert
+(
+	const quicklistNode *node,
+    const int fill, const size_t sz
+) 
+{
     if (unlikely(!node))
         return 0;
 
@@ -486,9 +512,13 @@ REDIS_STATIC int _quicklistNodeAllowInsert(const quicklistNode *node,
         return 0;
 }
 
-REDIS_STATIC int _quicklistNodeAllowMerge(const quicklistNode *a,
-                                          const quicklistNode *b,
-                                          const int fill) {
+REDIS_STATIC int _quicklistNodeAllowMerge
+(
+	const quicklistNode *a,
+    const quicklistNode *b,
+    const int fill
+) 
+{
     if (!a || !b)
         return 0;
 
@@ -514,45 +544,57 @@ REDIS_STATIC int _quicklistNodeAllowMerge(const quicklistNode *a,
  *
  * Returns 0 if used existing head.
  * Returns 1 if new head created. */
-int quicklistPushHead(quicklist *quicklist, void *value, size_t sz) {
+int quicklistPushHead(quicklist *quicklist, void *value, size_t sz) 
+{
     quicklistNode *orig_head = quicklist->head;
     if (likely(
-            _quicklistNodeAllowInsert(quicklist->head, quicklist->fill, sz))) {
+            _quicklistNodeAllowInsert(quicklist->head, quicklist->fill, sz))) 
+    {
         quicklist->head->zl =
             ziplistPush(quicklist->head->zl, value, sz, ZIPLIST_HEAD);
         quicklistNodeUpdateSz(quicklist->head);
-    } else {
+    } 
+	else 
+	{
         quicklistNode *node = quicklistCreateNode();
         node->zl = ziplistPush(ziplistNew(), value, sz, ZIPLIST_HEAD);
 
         quicklistNodeUpdateSz(node);
         _quicklistInsertNodeBefore(quicklist, quicklist->head, node);
     }
+	
     quicklist->count++;
     quicklist->head->count++;
     return (orig_head != quicklist->head);
+	
 }
 
 /* Add new entry to tail node of quicklist.
  *
  * Returns 0 if used existing tail.
  * Returns 1 if new tail created. */
-int quicklistPushTail(quicklist *quicklist, void *value, size_t sz) {
+int quicklistPushTail(quicklist *quicklist, void *value, size_t sz) 
+{
     quicklistNode *orig_tail = quicklist->tail;
     if (likely(
-            _quicklistNodeAllowInsert(quicklist->tail, quicklist->fill, sz))) {
+            _quicklistNodeAllowInsert(quicklist->tail, quicklist->fill, sz))) 
+    {
         quicklist->tail->zl =
             ziplistPush(quicklist->tail->zl, value, sz, ZIPLIST_TAIL);
         quicklistNodeUpdateSz(quicklist->tail);
-    } else {
+    }
+	else 
+	{
         quicklistNode *node = quicklistCreateNode();
         node->zl = ziplistPush(ziplistNew(), value, sz, ZIPLIST_TAIL);
 
         quicklistNodeUpdateSz(node);
         _quicklistInsertNodeAfter(quicklist, quicklist->tail, node);
     }
+	
     quicklist->count++;
     quicklist->tail->count++;
+	
     return (orig_tail != quicklist->tail);
 }
 
@@ -576,16 +618,22 @@ void quicklistAppendZiplist(quicklist *quicklist, unsigned char *zl) {
  * with smaller ziplist sizes than the saved RDB ziplist.
  *
  * Returns 'quicklist' argument. Frees passed-in ziplist 'zl' */
-quicklist *quicklistAppendValuesFromZiplist(quicklist *quicklist,
-                                            unsigned char *zl) {
+quicklist *quicklistAppendValuesFromZiplist
+(
+	quicklist *quicklist,
+    unsigned char *zl
+) 
+{
     unsigned char *value;
     unsigned int sz;
     long long longval;
     char longstr[32] = {0};
 
     unsigned char *p = ziplistIndex(zl, 0);
-    while (ziplistGet(p, &value, &sz, &longval)) {
-        if (!value) {
+    while (ziplistGet(p, &value, &sz, &longval)) 
+	{
+        if (!value) 
+		{
             /* Write the longval as a string so we can re-add it */
             sz = ll2string(longstr, sizeof(longstr), longval);
             value = (unsigned char *)longstr;
@@ -594,6 +642,7 @@ quicklist *quicklistAppendValuesFromZiplist(quicklist *quicklist,
         p = ziplistNext(zl, p);
     }
     zfree(zl);
+	
     return quicklist;
 }
 
