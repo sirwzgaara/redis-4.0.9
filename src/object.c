@@ -89,7 +89,7 @@ robj *createEmbeddedStringObject(const char *ptr, size_t len)
 
     o->type     = OBJ_STRING;
     o->encoding = OBJ_ENCODING_EMBSTR;
-    o->ptr 		= sh + 1;
+    o->ptr 		= sh + 1;	//指向sds中的ptr
     o->refcount = 1;
 	
     if (server.maxmemory_policy & MAXMEMORY_FLAG_LFU) 
@@ -125,27 +125,36 @@ robj *createEmbeddedStringObject(const char *ptr, size_t len)
  * The current limit of 39 is chosen so that the biggest string object
  * we allocate as EMBSTR will still fit into the 64 byte arena of jemalloc. */
 #define OBJ_ENCODING_EMBSTR_SIZE_LIMIT 44
-robj *createStringObject(const char *ptr, size_t len) {
+robj *createStringObject(const char *ptr, size_t len) 
+{
     if (len <= OBJ_ENCODING_EMBSTR_SIZE_LIMIT)
-        return createEmbeddedStringObject(ptr,len);
+        return createEmbeddedStringObject(ptr, len);
     else
         return createRawStringObject(ptr,len);
 }
 
-robj *createStringObjectFromLongLong(long long value) {
+robj *createStringObjectFromLongLong(long long value) 
+{
     robj *o;
-    if (value >= 0 && value < OBJ_SHARED_INTEGERS) {
+    if (value >= 0 && value < OBJ_SHARED_INTEGERS) 
+	{
         incrRefCount(shared.integers[value]);
         o = shared.integers[value];
-    } else {
-        if (value >= LONG_MIN && value <= LONG_MAX) {
+    } 
+	else 
+	{
+        if (value >= LONG_MIN && value <= LONG_MAX) 
+		{
             o = createObject(OBJ_STRING, NULL);
             o->encoding = OBJ_ENCODING_INT;
             o->ptr = (void*)((long)value);
-        } else {
-            o = createObject(OBJ_STRING,sdsfromlonglong(value));
+        } 
+		else 
+		{
+            o = createObject(OBJ_STRING, sdsfromlonglong(value));
         }
     }
+	
     return o;
 }
 
@@ -155,10 +164,11 @@ robj *createStringObjectFromLongLong(long long value) {
  * and the output of snprintf() is not modified.
  *
  * The 'humanfriendly' option is used for INCRBYFLOAT and HINCRBYFLOAT. */
-robj *createStringObjectFromLongDouble(long double value, int humanfriendly) {
+robj *createStringObjectFromLongDouble(long double value, int humanfriendly) 
+{
     char buf[MAX_LONG_DOUBLE_CHARS];
-    int len = ld2string(buf,sizeof(buf),value,humanfriendly);
-    return createStringObject(buf,len);
+    int len = ld2string(buf,sizeof(buf), value, humanfriendly);
+    return createStringObject(buf, len);
 }
 
 /* Duplicate a string object, with the guarantee that the returned object
@@ -169,16 +179,18 @@ robj *createStringObjectFromLongDouble(long double value, int humanfriendly) {
  * will always result in a fresh object that is unshared (refcount == 1).
  *
  * The resulting object always has refcount set to 1. */
-robj *dupStringObject(const robj *o) {
+robj *dupStringObject(const robj *o) 
+{
     robj *d;
 
     serverAssert(o->type == OBJ_STRING);
 
-    switch(o->encoding) {
+    switch(o->encoding) 
+	{
     case OBJ_ENCODING_RAW:
-        return createRawStringObject(o->ptr,sdslen(o->ptr));
+        return createRawStringObject(o->ptr, sdslen(o->ptr));
     case OBJ_ENCODING_EMBSTR:
-        return createEmbeddedStringObject(o->ptr,sdslen(o->ptr));
+        return createEmbeddedStringObject(o->ptr, sdslen(o->ptr));
     case OBJ_ENCODING_INT:
         d = createObject(OBJ_STRING, NULL);
         d->encoding = OBJ_ENCODING_INT;

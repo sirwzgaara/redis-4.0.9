@@ -91,35 +91,47 @@ static const size_t optimization_level[] = {4096, 8192, 16384, 32768, 65536};
 
 /* Create a new quicklist.
  * Free with quicklistRelease(). */
-quicklist *quicklistCreate(void) {
+quicklist *quicklistCreate(void) 
+{
     struct quicklist *quicklist;
 
-    quicklist = zmalloc(sizeof(*quicklist));
-    quicklist->head = quicklist->tail = NULL;
-    quicklist->len = 0;
-    quicklist->count = 0;
+    quicklist 			= zmalloc(sizeof(*quicklist));
+    quicklist->head 	= quicklist->tail = NULL;
+    quicklist->len  	= 0;
+    quicklist->count 	= 0;
     quicklist->compress = 0;
-    quicklist->fill = -2;
+    quicklist->fill 	= -2;
+	
     return quicklist;
 }
 
 #define COMPRESS_MAX (1 << 16)
-void quicklistSetCompressDepth(quicklist *quicklist, int compress) {
-    if (compress > COMPRESS_MAX) {
+void quicklistSetCompressDepth(quicklist *quicklist, int compress) 
+{
+    if (compress > COMPRESS_MAX) 
+	{
         compress = COMPRESS_MAX;
-    } else if (compress < 0) {
+    }
+	else if (compress < 0) 
+	{
         compress = 0;
     }
+	
     quicklist->compress = compress;
 }
 
 #define FILL_MAX (1 << 15)
-void quicklistSetFill(quicklist *quicklist, int fill) {
-    if (fill > FILL_MAX) {
+void quicklistSetFill(quicklist *quicklist, int fill) 
+{
+    if (fill > FILL_MAX) 
+	{
         fill = FILL_MAX;
-    } else if (fill < -5) {
+    } 
+	else if (fill < -5) 
+	{
         fill = -5;
     }
+	
     quicklist->fill = fill;
 }
 
@@ -135,30 +147,39 @@ quicklist *quicklistNew(int fill, int compress) {
     return quicklist;
 }
 
-REDIS_STATIC quicklistNode *quicklistCreateNode(void) {
+REDIS_STATIC quicklistNode *quicklistCreateNode(void) 
+{
     quicklistNode *node;
-    node = zmalloc(sizeof(*node));
-    node->zl = NULL;
-    node->count = 0;
-    node->sz = 0;
-    node->next = node->prev = NULL;
-    node->encoding = QUICKLIST_NODE_ENCODING_RAW;
-    node->container = QUICKLIST_NODE_CONTAINER_ZIPLIST;
+	
+    node 			 = zmalloc(sizeof(*node));
+    node->zl 		 = NULL;
+    node->count 	 = 0;
+    node->sz 		 = 0;
+    node->next 		 = node->prev = NULL;
+    node->encoding 	 = QUICKLIST_NODE_ENCODING_RAW;
+    node->container  = QUICKLIST_NODE_CONTAINER_ZIPLIST;
     node->recompress = 0;
+	
     return node;
 }
 
 /* Return cached quicklist count */
-unsigned long quicklistCount(const quicklist *ql) { return ql->count; }
+unsigned long quicklistCount(const quicklist *ql) 
+{ 
+	return ql->count; 
+}
 
 /* Free entire quicklist. */
-void quicklistRelease(quicklist *quicklist) {
+void quicklistRelease(quicklist *quicklist) 
+{
     unsigned long len;
     quicklistNode *current, *next;
 
     current = quicklist->head;
     len = quicklist->len;
-    while (len--) {
+	
+    while (len--) 
+	{
         next = current->next;
 
         zfree(current->zl);
@@ -169,13 +190,15 @@ void quicklistRelease(quicklist *quicklist) {
         quicklist->len--;
         current = next;
     }
+	
     zfree(quicklist);
 }
 
 /* Compress the ziplist in 'node' and update encoding details.
  * Returns 1 if ziplist compressed successfully.
  * Returns 0 if compression failed or if ziplist too small to compress. */
-REDIS_STATIC int __quicklistCompressNode(quicklistNode *node) {
+REDIS_STATIC int __quicklistCompressNode(quicklistNode *node) 
+{
 #ifdef REDIS_TEST
     node->attempted_compress = 1;
 #endif
@@ -189,16 +212,19 @@ REDIS_STATIC int __quicklistCompressNode(quicklistNode *node) {
     /* Cancel if compression fails or doesn't compress small enough */
     if (((lzf->sz = lzf_compress(node->zl, node->sz, lzf->compressed,
                                  node->sz)) == 0) ||
-        lzf->sz + MIN_COMPRESS_IMPROVE >= node->sz) {
+        lzf->sz + MIN_COMPRESS_IMPROVE >= node->sz) 
+    {
         /* lzf_compress aborts/rejects compression if value not compressable. */
         zfree(lzf);
         return 0;
     }
+	
     lzf = zrealloc(lzf, sizeof(*lzf) + lzf->sz);
     zfree(node->zl);
-    node->zl = (unsigned char *)lzf;
-    node->encoding = QUICKLIST_NODE_ENCODING_LZF;
+    node->zl 		 = (unsigned char *)lzf;
+    node->encoding 	 = QUICKLIST_NODE_ENCODING_LZF;
     node->recompress = 0;
+	
     return 1;
 }
 
@@ -212,21 +238,25 @@ REDIS_STATIC int __quicklistCompressNode(quicklistNode *node) {
 
 /* Uncompress the ziplist in 'node' and update encoding details.
  * Returns 1 on successful decode, 0 on failure to decode. */
-REDIS_STATIC int __quicklistDecompressNode(quicklistNode *node) {
+REDIS_STATIC int __quicklistDecompressNode(quicklistNode *node) 
+{
 #ifdef REDIS_TEST
     node->attempted_compress = 0;
 #endif
 
     void *decompressed = zmalloc(node->sz);
     quicklistLZF *lzf = (quicklistLZF *)node->zl;
-    if (lzf_decompress(lzf->compressed, lzf->sz, decompressed, node->sz) == 0) {
+    if (lzf_decompress(lzf->compressed, lzf->sz, decompressed, node->sz) == 0) 
+	{
         /* Someone requested decompress, but we can't decompress.  Not good. */
         zfree(decompressed);
         return 0;
     }
+	
     zfree(lzf);
     node->zl = decompressed;
     node->encoding = QUICKLIST_NODE_ENCODING_RAW;
+	
     return 1;
 }
 
@@ -262,8 +292,12 @@ size_t quicklistGetLzf(const quicklistNode *node, void **data) {
  * The only way to guarantee interior nodes get compressed is to iterate
  * to our "interior" compress depth then compress the next node we find.
  * If compress depth is larger than the entire list, we return immediately. */
-REDIS_STATIC void __quicklistCompress(const quicklist *quicklist,
-                                      quicklistNode *node) {
+REDIS_STATIC void __quicklistCompress
+(
+	const quicklist *quicklist,
+    quicklistNode *node
+) 
+{
     /* If length is less than our compress depth (from both sides),
      * we can't compress anything. */
     if (!quicklistAllowsCompression(quicklist) ||
@@ -306,7 +340,9 @@ REDIS_STATIC void __quicklistCompress(const quicklist *quicklist,
     quicklistNode *reverse = quicklist->tail;
     int depth = 0;
     int in_depth = 0;
-    while (depth++ < quicklist->compress) {
+	
+    while (depth++ < quicklist->compress) 
+	{
         quicklistDecompressNode(forward);
         quicklistDecompressNode(reverse);
 
@@ -323,7 +359,8 @@ REDIS_STATIC void __quicklistCompress(const quicklist *quicklist,
     if (!in_depth)
         quicklistCompressNode(node);
 
-    if (depth > 2) {
+    if (depth > 2) 
+	{
         /* At this point, forward and reverse are one node beyond depth */
         quicklistCompressNode(forward);
         quicklistCompressNode(reverse);
