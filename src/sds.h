@@ -88,18 +88,20 @@ struct __attribute__ ((__packed__)) sdshdr64 {
 /* s减去struct sdshdrT大小的内存，得到一个指向struct sdshdr结构的指针，返回这个结构的len */
 static inline size_t sdslen(const sds s) {
     unsigned char flags = s[-1];
-    switch(flags&SDS_TYPE_MASK) {
+    switch(flags&SDS_TYPE_MASK) 
+	{
         case SDS_TYPE_5:
             return SDS_TYPE_5_LEN(flags);
         case SDS_TYPE_8:
-            return SDS_HDR(8,s)->len;
+            return SDS_HDR(8, s)->len;
         case SDS_TYPE_16:
-            return SDS_HDR(16,s)->len;
+            return SDS_HDR(16, s)->len;
         case SDS_TYPE_32:
-            return SDS_HDR(32,s)->len;
+            return SDS_HDR(32, s)->len;
         case SDS_TYPE_64:
-            return SDS_HDR(64,s)->len;
+            return SDS_HDR(64, s)->len;
     }
+	
     return 0;
 }
 
@@ -110,24 +112,25 @@ static inline size_t sdsavail(const sds s)
     unsigned char flags = s[-1];
 
 	/* 保险起见，&7 */
-    switch(flags&SDS_TYPE_MASK) {
+    switch(flags & SDS_TYPE_MASK) 
+	{
         case SDS_TYPE_5: {
             return 0;
         }
         case SDS_TYPE_8: {
-            SDS_HDR_VAR(8,s);
+            SDS_HDR_VAR(8, s);
             return sh->alloc - sh->len;
         }
         case SDS_TYPE_16: {
-            SDS_HDR_VAR(16,s);
+            SDS_HDR_VAR(16, s);
             return sh->alloc - sh->len;
         }
         case SDS_TYPE_32: {
-            SDS_HDR_VAR(32,s);
+            SDS_HDR_VAR(32, s);
             return sh->alloc - sh->len;
         }
         case SDS_TYPE_64: {
-            SDS_HDR_VAR(64,s);
+            SDS_HDR_VAR(64, s);
             return sh->alloc - sh->len;
         }
     }
@@ -135,26 +138,28 @@ static inline size_t sdsavail(const sds s)
 }
 
 /* 重新分配一个长度 */
-static inline void sdssetlen(sds s, size_t newlen) {
+static inline void sdssetlen(sds s, size_t newlen)
+{
     unsigned char flags = s[-1];
-    switch(flags&SDS_TYPE_MASK) {
+    switch(flags & SDS_TYPE_MASK) 
+	{
         case SDS_TYPE_5:
             {
-                unsigned char *fp = ((unsigned char*)s)-1;
+                unsigned char *fp = ((unsigned char*)s) - 1;
                 *fp = SDS_TYPE_5 | (newlen << SDS_TYPE_BITS);
             }
             break;
         case SDS_TYPE_8:
-            SDS_HDR(8,s)->len = newlen;
+            SDS_HDR(8, s)->len = newlen;
             break;
         case SDS_TYPE_16:
-            SDS_HDR(16,s)->len = newlen;
+            SDS_HDR(16, s)->len = newlen;
             break;
         case SDS_TYPE_32:
-            SDS_HDR(32,s)->len = newlen;
+            SDS_HDR(32, s)->len = newlen;
             break;
         case SDS_TYPE_64:
-            SDS_HDR(64,s)->len = newlen;
+            SDS_HDR(64, s)->len = newlen;
             break;
     }
 }
