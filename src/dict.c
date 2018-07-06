@@ -254,8 +254,8 @@ long long timeInMilliseconds(void)
 {
     struct timeval tv;
 
-    gettimeofday(&tv,NULL);
-    return (((long long)tv.tv_sec)*1000)+(tv.tv_usec/1000);
+    gettimeofday(&tv, NULL);
+    return (((long long)tv.tv_sec) * 1000) + (tv.tv_usec / 1000);
 }
 
 /* Rehash for an amount of time between ms milliseconds and ms+1 milliseconds */
@@ -264,9 +264,11 @@ int dictRehashMilliseconds(dict *d, int ms)
     long long start = timeInMilliseconds();
     int rehashes = 0;
 
-    while(dictRehash(d, 100)) {
+    while (dictRehash(d, 100)) 
+	{
         rehashes += 100;
-        if (timeInMilliseconds() - start > ms) break;
+        if (timeInMilliseconds() - start > ms) 
+			break;
     }
 
 	/* 移动了多少个有内容的桶 */
@@ -327,7 +329,7 @@ dictEntry *dictAddRaw(dict *d, void *key, dictEntry **existing)
 		_dictRehashStep(d);
 
     /* Get the index of the new element, or -1 if the element already exists. */
-    if ((index = _dictKeyIndex(d, key, dictHashKey(d,key), existing)) == -1)
+    if ((index = _dictKeyIndex(d, key, dictHashKey(d, key), existing)) == -1)
         return NULL;
 
     /* Allocate the memory and store the new entry.
@@ -370,6 +372,7 @@ int dictReplace(dict *d, void *key, void *val)
     auxentry = *existing;
     dictSetVal(d, existing, val);
     dictFreeVal(d, &auxentry);
+	
     return 0;
 }
 
@@ -435,6 +438,7 @@ static dictEntry *dictGenericDelete(dict *d, const void *key, int nofree)
         if (!dictIsRehashing(d)) 
 			break;
     }
+	
     return NULL; /* not found */
 }
 
@@ -540,7 +544,7 @@ dictEntry *dictFind(dict *d, const void *key)
 		
         while(he) 
 		{
-            if (key==he->key || dictCompareKeys(d, key, he->key))
+            if (key == he->key || dictCompareKeys(d, key, he->key))
                 return he;
             he = he->next;
         }
@@ -555,7 +559,7 @@ void *dictFetchValue(dict *d, const void *key)
 {
     dictEntry *he;
 
-    he = dictFind(d,key);
+    he = dictFind(d, key);
     return he ? dictGetVal(he) : NULL;
 }
 
@@ -626,6 +630,7 @@ dictEntry *dictNext(dictIterator *iter)
 {
     while (1) 
 	{
+		/* 若当前桶空了 */
         if (iter->entry == NULL) 
 		{
             dictht *ht = &iter->d->ht[iter->table];
@@ -636,7 +641,8 @@ dictEntry *dictNext(dictIterator *iter)
                 else
                     iter->fingerprint = dictFingerprint(iter->d);
             }
-			
+
+			/* index是桶的索引 */
             iter->index++;
             if (iter->index >= (long)(ht->size)) 
 			{
@@ -673,6 +679,7 @@ dictEntry *dictNext(dictIterator *iter)
 
 void dictReleaseIterator(dictIterator *iter)
 {
+	/* 若迭代器还没挂接到字典 */
     if (!(iter->index == -1 && iter->table == 0)) 
 	{
         if (iter->safe)
@@ -700,6 +707,7 @@ dictEntry *dictGetRandomKey(dict *d)
 	/* 随机在ht[0]和ht[1]中找一个随机的非空桶 */
     if (dictIsRehashing(d)) 
 	{
+		/* 这是一个完全随机，在所有可能不为空的桶中找一个桶，是循环，直到找到非空桶为止 */
         do {
             /* We are sure there are no elements in indexes from 0 to rehashidx-1 */
             h = d->rehashidx + (random() % (d->ht[0].size +
@@ -725,7 +733,7 @@ dictEntry *dictGetRandomKey(dict *d)
     listlen = 0;
     orighe = he;
 	
-    while(he) 
+    while (he) 
 	{
         he = he->next;
         listlen++;
@@ -795,7 +803,6 @@ unsigned int dictGetSomeKeys(dict *d, dictEntry **des, unsigned int count)
 	
     while (stored < count && maxsteps--) 
 	{
-		/* 遍历两个ht */
         for (j = 0; j < tables; j++) 
 		{
             /* Invariant of the dict.c rehashing: up to the indexes already
@@ -853,13 +860,16 @@ unsigned int dictGetSomeKeys(dict *d, dictEntry **des, unsigned int count)
 
 /* Function to reverse bits. Algorithm from:
  * http://graphics.stanford.edu/~seander/bithacks.html#ReverseParallel */
-static unsigned long rev(unsigned long v) {
+static unsigned long rev(unsigned long v) 
+{
     unsigned long s = 8 * sizeof(v); // bit size; must be power of 2
     unsigned long mask = ~0;
-    while ((s >>= 1) > 0) {
+    while ((s >>= 1) > 0) 
+	{
         mask ^= (mask << s);
         v = ((v >> s) & mask) | ((v << s) & ~mask);
     }
+	
     return v;
 }
 
@@ -1061,7 +1071,7 @@ static int _dictExpandIfNeeded(dict *d)
      * the number of buckets. */
     if (d->ht[0].used >= d->ht[0].size &&
         (dict_can_resize ||
-         d->ht[0].used/d->ht[0].size > dict_force_resize_ratio))
+         d->ht[0].used / d->ht[0].size > dict_force_resize_ratio))
     {
         return dictExpand(d, d->ht[0].used * 2);
     }
@@ -1096,7 +1106,8 @@ static long _dictKeyIndex(dict *d, const void *key, uint64_t hash, dictEntry **e
 {
     unsigned long idx, table;
     dictEntry *he;
-    if (existing) *existing = NULL;
+    if (existing) 
+		*existing = NULL;
 
     /* Expand the hash table if needed */
     if (_dictExpandIfNeeded(d) == DICT_ERR)

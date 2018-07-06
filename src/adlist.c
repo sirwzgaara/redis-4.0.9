@@ -322,17 +322,23 @@ listNode *listSearchKey(list *list, void *key)
     listNode *node;
 
     listRewind(list, &iter);
-    while((node = listNext(&iter)) != NULL) {
-        if (list->match) {
+    while((node = listNext(&iter)) != NULL) 
+	{
+        if (list->match) 
+		{
             if (list->match(node->value, key)) {
                 return node;
             }
-        } else {
-            if (key == node->value) {
+        }
+		else
+		{
+            if (key == node->value) 
+			{
                 return node;
             }
         }
     }
+	
     return NULL;
 }
 
@@ -341,25 +347,33 @@ listNode *listSearchKey(list *list, void *key)
  * and so on. Negative integers are used in order to count
  * from the tail, -1 is the last element, -2 the penultimate
  * and so on. If the index is out of range NULL is returned. */
-listNode *listIndex(list *list, long index) {
+listNode *listIndex(list *list, long index) 
+{
     listNode *n;
 
-    if (index < 0) {
-        index = (-index)-1;
+    if (index < 0) 
+	{
+        index = (-index) - 1;
         n = list->tail;
-        while(index-- && n) n = n->prev;
-    } else {
+        while(index-- && n) 
+			n = n->prev;
+    } 
+	else 
+	{
         n = list->head;
-        while(index-- && n) n = n->next;
+        while(index-- && n) 
+			n = n->next;
     }
     return n;
 }
 
 /* Rotate the list removing the tail node and inserting it to the head. */
-void listRotate(list *list) {
+void listRotate(list *list) 
+{
     listNode *tail = list->tail;
 
-    if (listLength(list) <= 1) return;
+    if (listLength(list) <= 1) 
+		return;
 
     /* Detach current tail */
     list->tail = tail->prev;

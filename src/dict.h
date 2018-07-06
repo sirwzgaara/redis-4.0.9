@@ -138,15 +138,15 @@ typedef void (dictScanBucketFunction)(void *privdata, dictEntry **bucketref);
         (d)->type->keyCompare((d)->privdata, key1, key2) : \
         (key1) == (key2))
 
-#define dictHashKey(d, key) (d)->type->hashFunction(key)
-#define dictGetKey(he) ((he)->key)
-#define dictGetVal(he) ((he)->v.val)
-#define dictGetSignedIntegerVal(he) ((he)->v.s64)
+#define dictHashKey(d, key) 		  (d)->type->hashFunction(key)
+#define dictGetKey(he) 			 	  ((he)->key)
+#define dictGetVal(he) 				  ((he)->v.val)
+#define dictGetSignedIntegerVal(he)   ((he)->v.s64)
 #define dictGetUnsignedIntegerVal(he) ((he)->v.u64)
-#define dictGetDoubleVal(he) ((he)->v.d)
-#define dictSlots(d) ((d)->ht[0].size+(d)->ht[1].size)
-#define dictSize(d) ((d)->ht[0].used+(d)->ht[1].used)
-#define dictIsRehashing(d) ((d)->rehashidx != -1)
+#define dictGetDoubleVal(he) 		  ((he)->v.d)
+#define dictSlots(d) 				  ((d)->ht[0].size+(d)->ht[1].size)
+#define dictSize(d) 				  ((d)->ht[0].used+(d)->ht[1].used)
+#define dictIsRehashing(d) 			  ((d)->rehashidx != -1)
 
 /* API */
 dict *dictCreate(dictType *type, void *privDataPtr);
