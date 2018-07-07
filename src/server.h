@@ -763,7 +763,7 @@ typedef struct zskiplistNode {
     struct zskiplistNode *backward;
     struct zskiplistLevel {
         struct zskiplistNode *forward;
-        unsigned int span;
+        unsigned int span;		//jump number span of level[0] nodes to reach next node in this level
     } level[];
 } zskiplistNode;
 
