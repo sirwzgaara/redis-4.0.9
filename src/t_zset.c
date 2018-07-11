@@ -104,7 +104,8 @@ zskiplist *zslCreate(void)
 /* Free the specified skiplist node. The referenced SDS string representation
  * of the element is freed too, unless node->ele is set to NULL before calling
  * this function. */
-void zslFreeNode(zskiplistNode *node) {
+void zslFreeNode(zskiplistNode *node)
+{
     sdsfree(node->ele);
     zfree(node);
 }
@@ -192,6 +193,7 @@ zskiplistNode *zslInsert(zskiplist *zsl, double score, sds ele)
 
         /* update span covered by update[i] as x is inserted here */
         x->level[i].span = update[i]->level[i].span - (rank[0] - rank[i]);
+		/* 要加1因为多了一个节点 */
         update[i]->level[i].span = (rank[0] - rank[i]) + 1;
     }
 
@@ -470,7 +472,7 @@ unsigned long zslDeleteRangeByRank
     unsigned long traversed = 0, removed = 0;
     int i;
 
-	/* start是level[0]的索引 */
+	/* start是level[0]的索引，使用O(logN)查找然后顺序删除 */
     x = zsl->header;
     for (i = zsl->level - 1; i >= 0; i--) 
 	{
@@ -655,11 +657,12 @@ int zslParseLexRangeItem(robj *item, sds *dest, int *ex) {
 
 /* Free a lex range structure, must be called only after zelParseLexRange()
  * populated the structure with success (C_OK returned). */
-void zslFreeLexRange(zlexrangespec *spec) {
-    if (spec->min != shared.minstring &&
-        spec->min != shared.maxstring) sdsfree(spec->min);
-    if (spec->max != shared.minstring &&
-        spec->max != shared.maxstring) sdsfree(spec->max);
+void zslFreeLexRange(zlexrangespec *spec) 
+{
+    if (spec->min != shared.minstring && spec->min != shared.maxstring) 
+        sdsfree(spec->min);
+    if (spec->max != shared.minstring && spec->max != shared.maxstring)
+        sdsfree(spec->max);
 }
 
 /* Populate the lex rangespec according to the objects min and max.
