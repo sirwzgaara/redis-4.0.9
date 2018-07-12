@@ -42,7 +42,8 @@
 #define INTSET_ENC_INT64 (sizeof(int64_t))
 
 /* Return the required encoding for the provided value. */
-static uint8_t _intsetValueEncoding(int64_t v) {
+static uint8_t _intsetValueEncoding(int64_t v) 
+{
     if (v < INT32_MIN || v > INT32_MAX)
         return INTSET_ENC_INT64;
     else if (v < INT16_MIN || v > INT16_MAX)
@@ -79,12 +80,14 @@ static int64_t _intsetGetEncoded(intset *is, int pos, uint8_t enc)
 }
 
 /* Return the value at pos, using the configured encoding. */
-static int64_t _intsetGet(intset *is, int pos) {
+static int64_t _intsetGet(intset *is, int pos) 
+{
     return _intsetGetEncoded(is, pos, intrev32ifbe(is->encoding));
 }
 
 /* Set the value at pos, using the configured encoding. */
-static void _intsetSet(intset *is, int pos, int64_t value) {
+static void _intsetSet(intset *is, int pos, int64_t value) 
+{
     uint32_t encoding = intrev32ifbe(is->encoding);
 
     if (encoding == INTSET_ENC_INT64) {
@@ -100,15 +103,18 @@ static void _intsetSet(intset *is, int pos, int64_t value) {
 }
 
 /* Create an empty intset. */
-intset *intsetNew(void) {
+intset *intsetNew(void) 
+{
     intset *is = zmalloc(sizeof(intset));
     is->encoding = intrev32ifbe(INTSET_ENC_INT16);
     is->length = 0;
+	
     return is;
 }
 
 /* Resize the intset */
-static intset *intsetResize(intset *is, uint32_t len) {
+static intset *intsetResize(intset *is, uint32_t len)
+{
     uint32_t size = len * intrev32ifbe(is->encoding);
     is = zrealloc(is, sizeof(intset)+ size);
     return is;
@@ -201,6 +207,7 @@ static intset *intsetUpgradeAndAdd(intset *is, int64_t value)
         _intsetSet(is, length + prepend, _intsetGetEncoded(is, length, curenc));
 
     /* Set the value at the beginning or the end. */
+	/* 能引起扩大的value一定插入在头或者尾 */
     if (prepend)
         _intsetSet(is, 0, value);
     else
@@ -210,7 +217,8 @@ static intset *intsetUpgradeAndAdd(intset *is, int64_t value)
     return is;
 }
 
-static void intsetMoveTail(intset *is, uint32_t from, uint32_t to) {
+static void intsetMoveTail(intset *is, uint32_t from, uint32_t to) 
+{
     void *src, *dst;
     uint32_t bytes = intrev32ifbe(is->length) - from;
     uint32_t encoding = intrev32ifbe(is->encoding);
@@ -238,85 +246,107 @@ static void intsetMoveTail(intset *is, uint32_t from, uint32_t to) {
 }
 
 /* Insert an integer in the intset */
-intset *intsetAdd(intset *is, int64_t value, uint8_t *success) {
+intset *intsetAdd(intset *is, int64_t value, uint8_t *success) 
+{
     uint8_t valenc = _intsetValueEncoding(value);
     uint32_t pos;
-    if (success) *success = 1;
+    if (success) 
+		*success = 1;
 
     /* Upgrade encoding if necessary. If we need to upgrade, we know that
      * this value should be either appended (if > 0) or prepended (if < 0),
      * because it lies outside the range of existing values. */
-    if (valenc > intrev32ifbe(is->encoding)) {
+    if (valenc > intrev32ifbe(is->encoding)) 
+	{
         /* This always succeeds, so we don't need to curry *success. */
-        return intsetUpgradeAndAdd(is,value);
-    } else {
+        return intsetUpgradeAndAdd(is, value);
+    } 
+	else 
+	{
         /* Abort if the value is already present in the set.
          * This call will populate "pos" with the right position to insert
          * the value when it cannot be found. */
-        if (intsetSearch(is,value,&pos)) {
-            if (success) *success = 0;
+        if (intsetSearch(is, value, &pos)) 
+		{
+            if (success) 
+				*success = 0;
             return is;
         }
 
-        is = intsetResize(is,intrev32ifbe(is->length)+1);
-        if (pos < intrev32ifbe(is->length)) intsetMoveTail(is,pos,pos+1);
+        is = intsetResize(is, intrev32ifbe(is->length) + 1);
+        if (pos < intrev32ifbe(is->length)) 
+			intsetMoveTail(is, pos, pos + 1);
     }
 
-    _intsetSet(is,pos,value);
-    is->length = intrev32ifbe(intrev32ifbe(is->length)+1);
+    _intsetSet(is, pos, value);
+    is->length = intrev32ifbe(intrev32ifbe(is->length) + 1);
+	
     return is;
 }
 
 /* Delete integer from intset */
-intset *intsetRemove(intset *is, int64_t value, int *success) {
+intset *intsetRemove(intset *is, int64_t value, int *success) 
+{
     uint8_t valenc = _intsetValueEncoding(value);
     uint32_t pos;
-    if (success) *success = 0;
+    if (success) 
+		*success = 0;
 
 	/* 若value的编码方式更大，那么不需要删除了，一定不在intset中 */
-    if (valenc <= intrev32ifbe(is->encoding) && intsetSearch(is,value,&pos)) {
+    if (valenc <= intrev32ifbe(is->encoding) && intsetSearch(is, value, &pos)) 
+	{
         uint32_t len = intrev32ifbe(is->length);
 
         /* We know we can delete */
-        if (success) *success = 1;
+        if (success) 
+			*success = 1;
 
         /* Overwrite value with tail and update length */
-        if (pos < (len-1)) intsetMoveTail(is,pos+1,pos);
-        is = intsetResize(is,len-1);
-        is->length = intrev32ifbe(len-1);
+        if (pos < (len - 1)) 
+			intsetMoveTail(is, pos + 1, pos);
+        is = intsetResize(is, len - 1);
+        is->length = intrev32ifbe(len - 1);
     }
+	
     return is;
 }
 
 /* Determine whether a value belongs to this set */
-uint8_t intsetFind(intset *is, int64_t value) {
+uint8_t intsetFind(intset *is, int64_t value) 
+{
     uint8_t valenc = _intsetValueEncoding(value);
-    return valenc <= intrev32ifbe(is->encoding) && intsetSearch(is,value,NULL);
+    return valenc <= intrev32ifbe(is->encoding) && intsetSearch(is, value, NULL);
 }
 
 /* Return random member */
-int64_t intsetRandom(intset *is) {
-    return _intsetGet(is,rand()%intrev32ifbe(is->length));
+int64_t intsetRandom(intset *is) 
+{
+    return _intsetGet(is, rand() % intrev32ifbe(is->length));
 }
 
 /* Get the value at the given position. When this position is
  * out of range the function returns 0, when in range it returns 1. */
-uint8_t intsetGet(intset *is, uint32_t pos, int64_t *value) {
-    if (pos < intrev32ifbe(is->length)) {
-        *value = _intsetGet(is,pos);
+uint8_t intsetGet(intset *is, uint32_t pos, int64_t *value) 
+{
+    if (pos < intrev32ifbe(is->length))
+	{
+        *value = _intsetGet(is, pos);
         return 1;
     }
+	
     return 0;
 }
 
 /* Return intset length */
-uint32_t intsetLen(const intset *is) {
+uint32_t intsetLen(const intset *is) 
+{
     return intrev32ifbe(is->length);
 }
 
 /* Return intset blob size in bytes. */
-size_t intsetBlobLen(intset *is) {
-    return sizeof(intset)+intrev32ifbe(is->length)*intrev32ifbe(is->encoding);
+size_t intsetBlobLen(intset *is) 
+{
+    return sizeof(intset) + intrev32ifbe(is->length) * intrev32ifbe(is->encoding);
 }
 
 #ifdef REDIS_TEST

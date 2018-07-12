@@ -390,7 +390,8 @@ static char *invalid_hll_err = "-INVALIDOBJ Corrupted HLL object detected\r\n";
 /* Our hash function is MurmurHash2, 64 bit version.
  * It was modified for Redis in order to provide the same result in
  * big and little endian archs (endian neutral). */
-uint64_t MurmurHash64A (const void * key, int len, unsigned int seed) {
+uint64_t MurmurHash64A (const void * key, int len, unsigned int seed)
+{
     const uint64_t m = 0xc6a4a7935bd1e995;
     const int r = 47;
     uint64_t h = seed ^ (len * m);
@@ -450,7 +451,8 @@ uint64_t MurmurHash64A (const void * key, int len, unsigned int seed) {
 /* Given a string element to add to the HyperLogLog, returns the length
  * of the pattern 000..1 of the element hash. As a side effect 'regp' is
  * set to the register index this element hashes to. */
-int hllPatLen(unsigned char *ele, size_t elesize, long *regp) {
+int hllPatLen(unsigned char *ele, size_t elesize, long *regp) 
+{
     uint64_t hash, bit, index;
     int count;
 
@@ -495,7 +497,8 @@ int hllPatLen(unsigned char *ele, size_t elesize, long *regp) {
  * The function always succeed, however if as a result of the operation
  * the approximated cardinality changed, 1 is returned. Otherwise 0
  * is returned. */
-int hllDenseSet(uint8_t *registers, long index, uint8_t count) {
+int hllDenseSet(uint8_t *registers, long index, uint8_t count) 
+{
     uint8_t oldcount;
 
     HLL_DENSE_GET_REGISTER(oldcount, registers, index);
@@ -516,7 +519,8 @@ int hllDenseSet(uint8_t *registers, long index, uint8_t count) {
  *
  * This is just a wrapper to hllDenseSet(), performing the hashing of the
  * element in order to retrieve the index and zero-run count. */
-int hllDenseAdd(uint8_t *registers, unsigned char *ele, size_t elesize) {
+int hllDenseAdd(uint8_t *registers, unsigned char *ele, size_t elesize) 
+{
     long index;
     uint8_t count = hllPatLen(ele, elesize, &index);
     /* Update the register if this element produced a longer run of zeroes. */
@@ -794,11 +798,11 @@ int hllSparseSet(robj *o, long index, uint8_t count)
     if (is_val) 
 	{
         oldcount = HLL_SPARSE_VAL_VALUE(p);
-        /* Case A. */
+        /* Case A. if oldcount is bigger than count, no need to update */
         if (oldcount >= count) 
 			return 0;
 
-        /* Case B. */
+        /* Case B. if only one register is set to oldcount, just update it*/
         if (runlen == 1) 
 		{
             HLL_SPARSE_VAL_SET(p, count, 1);
@@ -987,7 +991,8 @@ promote: /* Promote to dense representation. */
  *
  * This function is actually a wrapper for hllSparseSet(), it only performs
  * the hashshing of the elmenet to obtain the index and zeros run length. */
-int hllSparseAdd(robj *o, unsigned char *ele, size_t elesize) {
+int hllSparseAdd(robj *o, unsigned char *ele, size_t elesize) 
+{
     long index;
     uint8_t count = hllPatLen(ele, elesize, &index);
     /* Update the register if this element produced a longer run of zeroes. */
@@ -998,7 +1003,8 @@ int hllSparseAdd(robj *o, unsigned char *ele, size_t elesize) {
  * PE is an array with a pre-computer table of values 2^-reg indexed by reg.
  * As a side effect the integer pointed by 'ezp' is set to the number
  * of zero registers. */
-double hllSparseSum(uint8_t *sparse, int sparselen, double *PE, int *ezp, int *invalid) {
+double hllSparseSum(uint8_t *sparse, int sparselen, double *PE, int *ezp, int *invalid) 
+{
     double E = 0;
     int ez = 0, idx = 0, runlen, regval;
     uint8_t *end = sparse + sparselen, *p = sparse;
@@ -1091,6 +1097,7 @@ double hllRawSum(uint8_t *registers, double *PE, int *ezp)
  * is, hdr->registers will point to an uint8_t array of HLL_REGISTERS element.
  * This is useful in order to speedup PFCOUNT when called against multiple
  * keys (no need to work with 6-bit integers encoding). */
+/* 根据所有寄存器的调和平均数计算近似基数 */
 uint64_t hllCount(struct hllhdr *hdr, int *invalid) 
 {
     double m = HLL_REGISTERS;
@@ -1145,18 +1152,24 @@ uint64_t hllCount(struct hllhdr *hdr, int *invalid)
                   -0.005384159 * pow(zl, 6) +
                    0.00042419 * pow(zl, 7);
 
+	/* llroundl: round argument to nearest interger value */
     E = llroundl(alpha * m * (m - ez) * (1 / (E + beta)));
 	
     return (uint64_t)E;
 }
 
 /* Call hllDenseAdd() or hllSparseAdd() according to the HLL encoding. */
-int hllAdd(robj *o, unsigned char *ele, size_t elesize) {
+int hllAdd(robj *o, unsigned char *ele, size_t elesize) 
+{
     struct hllhdr *hdr = o->ptr;
-    switch(hdr->encoding) {
-    case HLL_DENSE: return hllDenseAdd(hdr->registers,ele,elesize);
-    case HLL_SPARSE: return hllSparseAdd(o,ele,elesize);
-    default: return -1; /* Invalid representation. */
+    switch(hdr->encoding) 
+	{
+	    case HLL_DENSE: 
+			return hllDenseAdd(hdr->registers, ele, elesize);
+	    case HLL_SPARSE: 
+			return hllSparseAdd(o, ele, elesize);
+	    default: 
+			return -1; /* Invalid representation. */
     }
 }
 

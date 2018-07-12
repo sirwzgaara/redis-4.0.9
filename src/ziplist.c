@@ -307,7 +307,8 @@ typedef struct zlentry {
 } while(0)
 
 /* Return bytes needed to store integer encoded by 'encoding'. */
-unsigned int zipIntSize(unsigned char encoding) {
+unsigned int zipIntSize(unsigned char encoding) 
+{
     switch(encoding) {
     case ZIP_INT_8B:  return 1;
     case ZIP_INT_16B: return 2;
@@ -422,26 +423,36 @@ unsigned int zipStoreEntryEncoding
 
 /* Encode the length of the previous entry and write it to "p". This only
  * uses the larger encoding (required in __ziplistCascadeUpdate). */
-int zipStorePrevEntryLengthLarge(unsigned char *p, unsigned int len) {
-    if (p != NULL) {
+int zipStorePrevEntryLengthLarge(unsigned char *p, unsigned int len) 
+{
+    if (p != NULL) 
+	{
         p[0] = ZIP_BIG_PREVLEN;
         memcpy(p + 1, &len, sizeof(len));
         memrev32ifbe(p + 1);
     }
+	
     return 1 + sizeof(len);
 }
 
 /* Encode the length of the previous entry and write it to "p". Return the
  * number of bytes needed to encode this length if "p" is NULL. */
-unsigned int zipStorePrevEntryLength(unsigned char *p, unsigned int len) {
-    if (p == NULL) {
-        return (len < ZIP_BIG_PREVLEN) ? 1 : sizeof(len)+1;
-    } else {
-        if (len < ZIP_BIG_PREVLEN) {
+unsigned int zipStorePrevEntryLength(unsigned char *p, unsigned int len)
+{
+    if (p == NULL) 
+	{
+        return (len < ZIP_BIG_PREVLEN) ? 1 : sizeof(len) + 1;
+    } 
+	else 
+	{
+        if (len < ZIP_BIG_PREVLEN)
+		{
             p[0] = len;
             return 1;
-        } else {
-            return zipStorePrevEntryLengthLarge(p,len);
+        } 
+		else 
+		{
+            return zipStorePrevEntryLengthLarge(p, len);
         }
     }
 }
@@ -489,14 +500,16 @@ unsigned int zipStorePrevEntryLength(unsigned char *p, unsigned int len) {
  * So the function returns a positive number if more space is needed,
  * a negative number if less space is needed, or zero if the same space
  * is needed. */
-int zipPrevLenByteDiff(unsigned char *p, unsigned int len) {
+int zipPrevLenByteDiff(unsigned char *p, unsigned int len) 
+{
     unsigned int prevlensize;
     ZIP_DECODE_PREVLENSIZE(p, prevlensize);
     return zipStorePrevEntryLength(NULL, len) - prevlensize;
 }
 
 /* Return the total number of bytes used by the entry pointed to by 'p'. */
-unsigned int zipRawEntryLength(unsigned char *p) {
+unsigned int zipRawEntryLength(unsigned char *p) 
+{
     unsigned int prevlensize, encoding, lensize, len;
     ZIP_DECODE_PREVLENSIZE(p, prevlensize);
     ZIP_DECODE_LENGTH(p + prevlensize, encoding, lensize, len);
@@ -607,7 +620,8 @@ int64_t zipLoadInteger(unsigned char *p, unsigned char encoding) {
 }
 
 /* Return a struct with all information about an entry. */
-void zipEntry(unsigned char *p, zlentry *e) {
+void zipEntry(unsigned char *p, zlentry *e) 
+{
 
     ZIP_DECODE_PREVLEN(p, e->prevrawlensize, e->prevrawlen);
     ZIP_DECODE_LENGTH(p + e->prevrawlensize, e->encoding, e->lensize, e->len);
@@ -629,10 +643,12 @@ unsigned char *ziplistNew(void)
 }
 
 /* Resize the ziplist. */
-unsigned char *ziplistResize(unsigned char *zl, unsigned int len) {
-    zl = zrealloc(zl,len);
+unsigned char *ziplistResize(unsigned char *zl, unsigned int len) 
+{
+    zl = zrealloc(zl, len);
     ZIPLIST_BYTES(zl) = intrev32ifbe(len);
     zl[len - 1] = ZIP_END;
+	
     return zl;
 }
 
@@ -719,6 +735,7 @@ unsigned char *__ziplistCascadeUpdate
         }
 		else 
 		{
+			/* 在这里判断并没有用，是bug */
             if (next.prevrawlensize > rawlensize) 
 			{
                 /* This would result in shrinking, which we want to avoid.
@@ -1232,14 +1249,22 @@ unsigned int ziplistGet
 }
 
 /* Insert an entry at "p". */
-unsigned char *ziplistInsert(unsigned char *zl, unsigned char *p, unsigned char *s, unsigned int slen) {
-    return __ziplistInsert(zl,p,s,slen);
+unsigned char *ziplistInsert
+(
+	unsigned char *zl, 
+	unsigned char *p, 
+	unsigned char *s, 
+	unsigned int slen
+) 
+{
+    return __ziplistInsert(zl, p, s, slen);
 }
 
 /* Delete a single entry from the ziplist, pointed to by *p.
  * Also update *p in place, to be able to iterate over the
  * ziplist, while deleting entries. */
-unsigned char *ziplistDelete(unsigned char *zl, unsigned char **p) {
+unsigned char *ziplistDelete(unsigned char *zl, unsigned char **p) 
+{
     size_t offset = *p - zl;
     zl = __ziplistDelete(zl, *p, 1);
 
@@ -1252,7 +1277,8 @@ unsigned char *ziplistDelete(unsigned char *zl, unsigned char **p) {
 }
 
 /* Delete a range of entries from the ziplist. */
-unsigned char *ziplistDeleteRange(unsigned char *zl, int index, unsigned int num) {
+unsigned char *ziplistDeleteRange(unsigned char *zl, int index, unsigned int num) 
+{
     unsigned char *p = ziplistIndex(zl, index);
     return (p == NULL) ? zl : __ziplistDelete(zl, p, num);
 }
@@ -1400,11 +1426,13 @@ unsigned int ziplistLen(unsigned char *zl)
 }
 
 /* Return ziplist blob size in bytes. */
-size_t ziplistBlobLen(unsigned char *zl) {
+size_t ziplistBlobLen(unsigned char *zl) 
+{
     return intrev32ifbe(ZIPLIST_BYTES(zl));
 }
 
-void ziplistRepr(unsigned char *zl) {
+void ziplistRepr(unsigned char *zl) 
+{
     unsigned char *p;
     int index = 0;
     zlentry entry;
