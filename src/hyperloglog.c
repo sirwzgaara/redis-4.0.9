@@ -112,7 +112,7 @@
  * XZERO opcode is represented by two bytes 01xxxxxx yyyyyyyy. The 14-bit
  * integer represented by the bits 'xxxxxx' as most significant bits and
  * 'yyyyyyyy' as least significant bits, plus 1, means that there are N
- * registers set to 0. This opcode can represent from 0 to 16384 contiguous
+ * registers set to 0. This opcode can represent from 1 to 16384 contiguous
  * registers set to the value of 0.
  *
  * VAL opcode is represented as 1vvvvvxx. It contains a 5-bit integer

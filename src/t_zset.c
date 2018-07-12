@@ -576,7 +576,8 @@ static int zslParseRange(robj *min, robj *max, zrangespec *spec)
 	{
         if (((char*)min->ptr)[0] == '(') 
 		{
-            spec->min = strtod((char*)min->ptr + 1,&eptr);
+			/* strtod:convert string to float */
+            spec->min = strtod((char*)min->ptr + 1, &eptr);
             if (eptr[0] != '\0' || isnan(spec->min)) 
 				return C_ERR;
             spec->minex = 1;
@@ -597,7 +598,7 @@ static int zslParseRange(robj *min, robj *max, zrangespec *spec)
 	{
         if (((char*)max->ptr)[0] == '(') 
 		{
-            spec->max = strtod((char*)max->ptr+1,&eptr);
+            spec->max = strtod((char*)max->ptr + 1,&eptr);
             if (eptr[0] != '\0' || isnan(spec->max)) 
 				return C_ERR;
             spec->maxex = 1;
@@ -628,27 +629,30 @@ static int zslParseRange(robj *min, robj *max, zrangespec *spec)
   *
   * If the string is not a valid range C_ERR is returned, and the value
   * of *dest and *ex is undefined. */
-int zslParseLexRangeItem(robj *item, sds *dest, int *ex) {
+int zslParseLexRangeItem(robj *item, sds *dest, int *ex) 
+{
     char *c = item->ptr;
 
     switch(c[0]) {
     case '+':
-        if (c[1] != '\0') return C_ERR;
+        if (c[1] != '\0') 
+			return C_ERR;
         *ex = 0;
         *dest = shared.maxstring;
         return C_OK;
     case '-':
-        if (c[1] != '\0') return C_ERR;
+        if (c[1] != '\0') 
+			return C_ERR;
         *ex = 0;
         *dest = shared.minstring;
         return C_OK;
     case '(':
         *ex = 1;
-        *dest = sdsnewlen(c+1,sdslen(c)-1);
+        *dest = sdsnewlen(c + 1, sdslen(c) - 1);
         return C_OK;
     case '[':
         *ex = 0;
-        *dest = sdsnewlen(c+1,sdslen(c)-1);
+        *dest = sdsnewlen(c + 1, sdslen(c) - 1);
         return C_OK;
     default:
         return C_ERR;
@@ -670,18 +674,22 @@ void zslFreeLexRange(zlexrangespec *spec)
  * Return C_OK on success. On error C_ERR is returned.
  * When OK is returned the structure must be freed with zslFreeLexRange(),
  * otherwise no release is needed. */
-int zslParseLexRange(robj *min, robj *max, zlexrangespec *spec) {
+int zslParseLexRange(robj *min, robj *max, zlexrangespec *spec) 
+{
     /* The range can't be valid if objects are integer encoded.
      * Every item must start with ( or [. */
-    if (min->encoding == OBJ_ENCODING_INT ||
-        max->encoding == OBJ_ENCODING_INT) return C_ERR;
+    if (min->encoding == OBJ_ENCODING_INT || max->encoding == OBJ_ENCODING_INT) 
+        return C_ERR;
 
     spec->min = spec->max = NULL;
     if (zslParseLexRangeItem(min, &spec->min, &spec->minex) == C_ERR ||
-        zslParseLexRangeItem(max, &spec->max, &spec->maxex) == C_ERR) {
+        zslParseLexRangeItem(max, &spec->max, &spec->maxex) == C_ERR) 
+    {
         zslFreeLexRange(spec);
         return C_ERR;
-    } else {
+    } 
+	else 
+	{
         return C_OK;
     }
 }
@@ -689,57 +697,73 @@ int zslParseLexRange(robj *min, robj *max, zlexrangespec *spec) {
 /* This is just a wrapper to sdscmp() that is able to
  * handle shared.minstring and shared.maxstring as the equivalent of
  * -inf and +inf for strings */
-int sdscmplex(sds a, sds b) {
-    if (a == b) return 0;
-    if (a == shared.minstring || b == shared.maxstring) return -1;
-    if (a == shared.maxstring || b == shared.minstring) return 1;
-    return sdscmp(a,b);
+int sdscmplex(sds a, sds b) 
+{
+    if (a == b) 
+		return 0;
+	
+    if (a == shared.minstring || b == shared.maxstring) 
+		return -1;
+	
+    if (a == shared.maxstring || b == shared.minstring) 
+		return 1;
+	
+    return sdscmp(a, b);
 }
 
-int zslLexValueGteMin(sds value, zlexrangespec *spec) {
+int zslLexValueGteMin(sds value, zlexrangespec *spec) 
+{
     return spec->minex ?
-        (sdscmplex(value,spec->min) > 0) :
-        (sdscmplex(value,spec->min) >= 0);
+        (sdscmplex(value, spec->min) > 0) :
+        (sdscmplex(value, spec->min) >= 0);
 }
 
-int zslLexValueLteMax(sds value, zlexrangespec *spec) {
+int zslLexValueLteMax(sds value, zlexrangespec *spec) 
+{
     return spec->maxex ?
-        (sdscmplex(value,spec->max) < 0) :
-        (sdscmplex(value,spec->max) <= 0);
+        (sdscmplex(value, spec->max) < 0) :
+        (sdscmplex(value, spec->max) <= 0);
 }
 
 /* Returns if there is a part of the zset is in the lex range. */
-int zslIsInLexRange(zskiplist *zsl, zlexrangespec *range) {
+int zslIsInLexRange(zskiplist *zsl, zlexrangespec *range) 
+{
     zskiplistNode *x;
 
     /* Test for ranges that will always be empty. */
-    if (sdscmplex(range->min,range->max) > 1 ||
-            (sdscmp(range->min,range->max) == 0 &&
+    if (sdscmplex(range->min, range->max) > 1 ||
+            (sdscmp(range->min, range->max) == 0 &&
             (range->minex || range->maxex)))
         return 0;
+	
     x = zsl->tail;
-    if (x == NULL || !zslLexValueGteMin(x->ele,range))
+    if (x == NULL || !zslLexValueGteMin(x->ele, range))
         return 0;
+	
     x = zsl->header->level[0].forward;
-    if (x == NULL || !zslLexValueLteMax(x->ele,range))
+    if (x == NULL || !zslLexValueLteMax(x->ele, range))
         return 0;
+	
     return 1;
 }
 
 /* Find the first node that is contained in the specified lex range.
  * Returns NULL when no element is contained in the range. */
-zskiplistNode *zslFirstInLexRange(zskiplist *zsl, zlexrangespec *range) {
+zskiplistNode *zslFirstInLexRange(zskiplist *zsl, zlexrangespec *range) 
+{
     zskiplistNode *x;
     int i;
 
     /* If everything is out of range, return early. */
-    if (!zslIsInLexRange(zsl,range)) return NULL;
+    if (!zslIsInLexRange(zsl, range)) 
+		return NULL;
 
     x = zsl->header;
-    for (i = zsl->level-1; i >= 0; i--) {
+    for (i = zsl->level - 1; i >= 0; i--) 
+	{
         /* Go forward while *OUT* of range. */
         while (x->level[i].forward &&
-            !zslLexValueGteMin(x->level[i].forward->ele,range))
+            !zslLexValueGteMin(x->level[i].forward->ele, range))
                 x = x->level[i].forward;
     }
 
@@ -748,24 +772,29 @@ zskiplistNode *zslFirstInLexRange(zskiplist *zsl, zlexrangespec *range) {
     serverAssert(x != NULL);
 
     /* Check if score <= max. */
-    if (!zslLexValueLteMax(x->ele,range)) return NULL;
+    if (!zslLexValueLteMax(x->ele, range)) 
+		return NULL;
+	
     return x;
 }
 
 /* Find the last node that is contained in the specified range.
  * Returns NULL when no element is contained in the range. */
-zskiplistNode *zslLastInLexRange(zskiplist *zsl, zlexrangespec *range) {
+zskiplistNode *zslLastInLexRange(zskiplist *zsl, zlexrangespec *range) 
+{
     zskiplistNode *x;
     int i;
 
     /* If everything is out of range, return early. */
-    if (!zslIsInLexRange(zsl,range)) return NULL;
+    if (!zslIsInLexRange(zsl, range)) 
+		return NULL;
 
     x = zsl->header;
-    for (i = zsl->level-1; i >= 0; i--) {
+    for (i = zsl->level - 1; i >= 0; i--)
+	{
         /* Go forward while *IN* range. */
         while (x->level[i].forward &&
-            zslLexValueLteMax(x->level[i].forward->ele,range))
+            zslLexValueLteMax(x->level[i].forward->ele, range))
                 x = x->level[i].forward;
     }
 
@@ -773,7 +802,9 @@ zskiplistNode *zslLastInLexRange(zskiplist *zsl, zlexrangespec *range) {
     serverAssert(x != NULL);
 
     /* Check if score >= min. */
-    if (!zslLexValueGteMin(x->ele,range)) return NULL;
+    if (!zslLexValueGteMin(x->ele, range)) 
+		return NULL;
+	
     return x;
 }
 
@@ -781,7 +812,8 @@ zskiplistNode *zslLastInLexRange(zskiplist *zsl, zlexrangespec *range) {
  * Ziplist-backed sorted set API
  *----------------------------------------------------------------------------*/
 
-double zzlGetScore(unsigned char *sptr) {
+double zzlGetScore(unsigned char *sptr) 
+{
     unsigned char *vstr;
     unsigned int vlen;
     long long vlong;
@@ -791,11 +823,14 @@ double zzlGetScore(unsigned char *sptr) {
     serverAssert(sptr != NULL);
     serverAssert(ziplistGet(sptr,&vstr,&vlen,&vlong));
 
-    if (vstr) {
+    if (vstr) 
+	{
         memcpy(buf,vstr,vlen);
         buf[vlen] = '\0';
         score = strtod(buf,NULL);
-    } else {
+    }
+	else 
+	{
         score = vlong;
     }
 
