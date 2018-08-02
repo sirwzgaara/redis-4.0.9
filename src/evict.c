@@ -51,7 +51,8 @@
  * Empty entries have the key pointer set to NULL. */
 #define EVPOOL_SIZE 16
 #define EVPOOL_CACHED_SDS_SIZE 255
-struct evictionPoolEntry {
+struct evictionPoolEntry
+{
     unsigned long long idle;    /* Object idle time (inverse frequency for LFU) */
     sds key;                    /* Key name. */
     sds cached;                 /* Cached SDS object for key name. */
@@ -67,33 +68,43 @@ static struct evictionPoolEntry *EvictionPoolLRU;
 /* Return the LRU clock, based on the clock resolution. This is a time
  * in a reduced-bits format that can be used to set and check the
  * object->lru field of redisObject structures. */
-unsigned int getLRUClock(void) {
-    return (mstime()/LRU_CLOCK_RESOLUTION) & LRU_CLOCK_MAX;
+unsigned int getLRUClock(void)
+{
+    return (mstime() / LRU_CLOCK_RESOLUTION) & LRU_CLOCK_MAX;
 }
 
 /* This function is used to obtain the current LRU clock.
  * If the current resolution is lower than the frequency we refresh the
  * LRU clock (as it should be in production servers) we return the
  * precomputed value, otherwise we need to resort to a system call. */
-unsigned int LRU_CLOCK(void) {
+unsigned int LRU_CLOCK(void)
+{
     unsigned int lruclock;
-    if (1000/server.hz <= LRU_CLOCK_RESOLUTION) {
-        atomicGet(server.lruclock,lruclock);
-    } else {
+    if (1000 / server.hz <= LRU_CLOCK_RESOLUTION) 
+	{
+        atomicGet(server.lruclock, lruclock);
+    } 
+	else 
+	{
         lruclock = getLRUClock();
     }
+
     return lruclock;
 }
 
 /* Given an object returns the min number of milliseconds the object was never
  * requested, using an approximated LRU algorithm. */
-unsigned long long estimateObjectIdleTime(robj *o) {
+/* 离上次访问越久，得到的idle time就越大 */
+unsigned long long estimateObjectIdleTime(robj *o)
+{
     unsigned long long lruclock = LRU_CLOCK();
-    if (lruclock >= o->lru) {
+    if (lruclock >= o->lru) 
+	{
         return (lruclock - o->lru) * LRU_CLOCK_RESOLUTION;
-    } else {
-        return (lruclock + (LRU_CLOCK_MAX - o->lru)) *
-                    LRU_CLOCK_RESOLUTION;
+    }
+	else 
+	{
+        return (lruclock + (LRU_CLOCK_MAX - o->lru)) * LRU_CLOCK_RESOLUTION;
     }
 }
 
@@ -136,17 +147,21 @@ unsigned long long estimateObjectIdleTime(robj *o) {
  * evicted in the whole database. */
 
 /* Create a new eviction pool. */
-void evictionPoolAlloc(void) {
+void evictionPoolAlloc(void) 
+{
     struct evictionPoolEntry *ep;
     int j;
 
-    ep = zmalloc(sizeof(*ep)*EVPOOL_SIZE);
-    for (j = 0; j < EVPOOL_SIZE; j++) {
-        ep[j].idle = 0;
-        ep[j].key = NULL;
-        ep[j].cached = sdsnewlen(NULL,EVPOOL_CACHED_SDS_SIZE);
-        ep[j].dbid = 0;
+    ep = zmalloc(sizeof(*ep) * EVPOOL_SIZE);
+
+    for (j = 0; j < EVPOOL_SIZE; j++) 
+	{
+        ep[j].idle   = 0;
+        ep[j].key 	 = NULL;
+        ep[j].cached = sdsnewlen(NULL, EVPOOL_CACHED_SDS_SIZE);
+        ep[j].dbid   = 0;
     }
+
     EvictionPoolLRU = ep;
 }
 
@@ -159,12 +174,20 @@ void evictionPoolAlloc(void) {
  * idle time are on the left, and keys with the higher idle time on the
  * right. */
 
-void evictionPoolPopulate(int dbid, dict *sampledict, dict *keydict, struct evictionPoolEntry *pool) {
+void evictionPoolPopulate
+(
+	int dbid, 
+	dict *sampledict, 
+	dict *keydict, 
+	struct evictionPoolEntry *pool
+) 
+{
     int j, k, count;
     dictEntry *samples[server.maxmemory_samples];
 
-    count = dictGetSomeKeys(sampledict,samples,server.maxmemory_samples);
-    for (j = 0; j < count; j++) {
+    count = dictGetSomeKeys(sampledict, samples, server.maxmemory_samples);
+    for (j = 0; j < count; j++) 
+	{
         unsigned long long idle;
         sds key;
         robj *o;
@@ -176,7 +199,8 @@ void evictionPoolPopulate(int dbid, dict *sampledict, dict *keydict, struct evic
         /* If the dictionary we are sampling from is not the main
          * dictionary (but the expires one) we need to lookup the key
          * again in the key dictionary to obtain the value object. */
-        if (server.maxmemory_policy != MAXMEMORY_VOLATILE_TTL) {
+        if (server.maxmemory_policy != MAXMEMORY_VOLATILE_TTL) 
+		{
             if (sampledict != keydict) de = dictFind(keydict, key);
             o = dictGetVal(de);
         }

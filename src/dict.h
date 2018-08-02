@@ -44,56 +44,62 @@
 /* Unused arguments generate annoying warnings... */
 #define DICT_NOTUSED(V) ((void) V)
 
-typedef struct dictEntry {
+typedef struct dictEntry
+{
     void *key;
-    union {
+    union 
+	{
         void *val;
         uint64_t u64;
         int64_t s64;
         double d;
     } v;
     struct dictEntry *next;
-} dictEntry;
+}dictEntry;
 
-typedef struct dictType {
+typedef struct dictType 
+{
     uint64_t (*hashFunction)(const void *key);
     void *(*keyDup)(void *privdata, const void *key);
     void *(*valDup)(void *privdata, const void *obj);
     int (*keyCompare)(void *privdata, const void *key1, const void *key2);
     void (*keyDestructor)(void *privdata, void *key);
     void (*valDestructor)(void *privdata, void *obj);
-} dictType;
+}dictType;
 
 /* This is our hash table structure. Every dictionary has two of this as we
  * implement incremental rehashing, for the old to the new table. */
-typedef struct dictht {
+typedef struct dictht 
+{
     dictEntry **table;
     unsigned long size;
     unsigned long sizemask;
     unsigned long used;		//这个是所有元素数，一个桶可能拉出来很多元素
-} dictht;
+}dictht;
 
-typedef struct dict {
+typedef struct dict 
+{
     dictType *type;
     void *privdata;
     dictht ht[2];
 	/* rehashidx是rehashing过程中当前访问到的ht[0]的第index个桶 */
     long rehashidx; /* rehashing not in progress if rehashidx == -1 */
     unsigned long iterators; /* number of iterators currently running */
-} dict;
+}dict;
 
 /* If safe is set to 1 this is a safe iterator, that means, you can call
  * dictAdd, dictFind, and other functions against the dictionary even while
  * iterating. Otherwise it is a non safe iterator, and only dictNext()
  * should be called while iterating. */
-typedef struct dictIterator {
+typedef struct dictIterator 
+{
     dict *d;
     long index;
     int table, safe;
     dictEntry *entry, *nextEntry;
     /* unsafe iterator fingerprint for misuse detection. */
     long long fingerprint;
-} dictIterator;
+}dictIterator;
 
 typedef void (dictScanFunction)(void *privdata, const dictEntry *de);
 typedef void (dictScanBucketFunction)(void *privdata, dictEntry **bucketref);
@@ -144,8 +150,8 @@ typedef void (dictScanBucketFunction)(void *privdata, dictEntry **bucketref);
 #define dictGetSignedIntegerVal(he)   ((he)->v.s64)
 #define dictGetUnsignedIntegerVal(he) ((he)->v.u64)
 #define dictGetDoubleVal(he) 		  ((he)->v.d)
-#define dictSlots(d) 				  ((d)->ht[0].size+(d)->ht[1].size)
-#define dictSize(d) 				  ((d)->ht[0].used+(d)->ht[1].used)
+#define dictSlots(d) 				  ((d)->ht[0].size + (d)->ht[1].size)
+#define dictSize(d) 				  ((d)->ht[0].used + (d)->ht[1].used)
 #define dictIsRehashing(d) 			  ((d)->rehashidx != -1)
 
 /* API */
