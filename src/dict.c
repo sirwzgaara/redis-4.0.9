@@ -73,11 +73,13 @@ static int _dictInit(dict *ht, dictType *type, void *privDataPtr);
 
 static uint8_t dict_hash_function_seed[16];
 
-void dictSetHashFunctionSeed(uint8_t *seed) {
-    memcpy(dict_hash_function_seed,seed,sizeof(dict_hash_function_seed));
+void dictSetHashFunctionSeed(uint8_t *seed) 
+{
+    memcpy(dict_hash_function_seed, seed, sizeof(dict_hash_function_seed));
 }
 
-uint8_t *dictGetHashFunctionSeed(void) {
+uint8_t *dictGetHashFunctionSeed(void) 
+{
     return dict_hash_function_seed;
 }
 
@@ -87,12 +89,14 @@ uint8_t *dictGetHashFunctionSeed(void) {
 uint64_t siphash(const uint8_t *in, const size_t inlen, const uint8_t *k);
 uint64_t siphash_nocase(const uint8_t *in, const size_t inlen, const uint8_t *k);
 
-uint64_t dictGenHashFunction(const void *key, int len) {
-    return siphash(key,len,dict_hash_function_seed);
+uint64_t dictGenHashFunction(const void *key, int len) 
+{
+    return siphash(key, len, dict_hash_function_seed);
 }
 
-uint64_t dictGenCaseHashFunction(const unsigned char *buf, int len) {
-    return siphash_nocase(buf,len,dict_hash_function_seed);
+uint64_t dictGenCaseHashFunction(const unsigned char *buf, int len) 
+{
+    return siphash_nocase(buf, len, dict_hash_function_seed);
 }
 
 /* ----------------------------- API implementation ------------------------- */
@@ -212,7 +216,7 @@ int dictRehash(dict *d, int n)
 		{
             d->rehashidx++;
 
-			/* 有的桶可能没有元素，但是最多只允许访问10 * n个桶 */
+			/* 有的桶可能没有元素，但是最多只允许访问10 * n个空桶 */
             if (--empty_visits == 0) 
 				return 1;
         }
@@ -292,6 +296,7 @@ static void _dictRehashStep(dict *d)
 /* Add an element to the target hash table */
 int dictAdd(dict *d, void *key, void *val)
 {
+	/* 在dictAddRaw之后，已经加入hash了，后续可以修改此entry中的内容 */
     dictEntry *entry = dictAddRaw(d, key, NULL);
 
     if (!entry) 
@@ -444,7 +449,8 @@ static dictEntry *dictGenericDelete(dict *d, const void *key, int nofree)
 
 /* Remove an element, returning DICT_OK on success or DICT_ERR if the
  * element was not found. */
-int dictDelete(dict *ht, const void *key) {
+int dictDelete(dict *ht, const void *key) 
+{
     return dictGenericDelete(ht, key, 0) ? DICT_OK : DICT_ERR;
 }
 
@@ -469,14 +475,17 @@ int dictDelete(dict *ht, const void *key) {
  * // Do something with entry
  * dictFreeUnlinkedEntry(entry); // <- This does not need to lookup again.
  */
-dictEntry *dictUnlink(dict *ht, const void *key) {
+dictEntry *dictUnlink(dict *ht, const void *key) 
+{
     return dictGenericDelete(ht, key, 1);
 }
 
 /* You need to call this function to really free the entry after a call
  * to dictUnlink(). It's safe to call this function with 'he' = NULL. */
-void dictFreeUnlinkedEntry(dict *d, dictEntry *he) {
-    if (he == NULL) return;
+void dictFreeUnlinkedEntry(dict *d, dictEntry *he) 
+{
+    if (he == NULL) 
+		return;
     dictFreeKey(d, he);
     dictFreeVal(d, he);
     zfree(he);
@@ -542,7 +551,7 @@ dictEntry *dictFind(dict *d, const void *key)
         idx = h & d->ht[table].sizemask;
         he = d->ht[table].table[idx];
 		
-        while(he) 
+        while (he) 
 		{
             if (key == he->key || dictCompareKeys(d, key, he->key))
                 return he;
@@ -626,11 +635,11 @@ dictIterator *dictGetSafeIterator(dict *d)
     return i;
 }
 
+/* 使用迭代器获取下一个entry */
 dictEntry *dictNext(dictIterator *iter)
 {
     while (1) 
 	{
-		/* 若当前桶空了 */
         if (iter->entry == NULL) 
 		{
             dictht *ht = &iter->d->ht[iter->table];
@@ -679,7 +688,7 @@ dictEntry *dictNext(dictIterator *iter)
 
 void dictReleaseIterator(dictIterator *iter)
 {
-	/* 若迭代器还没挂接到字典 */
+	/* 若迭代器已经挂接到字典 */
     if (!(iter->index == -1 && iter->table == 0)) 
 	{
         if (iter->safe)
@@ -725,7 +734,7 @@ dictEntry *dictGetRandomKey(dict *d)
         } while(he == NULL);
     }
 
-	/* 第二次随机，从刚才得到的随机非空桶中找一个随机元素 */
+	/* 第二次随机，从刚才得到的随机非空桶中找一个随机元素，也是完全随机 */
     /* Now we found a non empty bucket, but it is a linked
      * list and we need to get a random element from the list.
      * The only sane way to do so is counting the elements and
