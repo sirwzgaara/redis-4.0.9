@@ -1156,15 +1156,18 @@ void dictEmpty(dict *d, void(callback)(void*))
     d->iterators = 0;
 }
 
-void dictEnableResize(void) {
+void dictEnableResize(void) 
+{
     dict_can_resize = 1;
 }
 
-void dictDisableResize(void) {
+void dictDisableResize(void) 
+{
     dict_can_resize = 0;
 }
 
-uint64_t dictGetHash(dict *d, const void *key) {
+uint64_t dictGetHash(dict *d, const void *key) 
+{
     return dictHashKey(d, key);
 }
 

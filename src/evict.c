@@ -201,16 +201,20 @@ void evictionPoolPopulate
          * again in the key dictionary to obtain the value object. */
         if (server.maxmemory_policy != MAXMEMORY_VOLATILE_TTL) 
 		{
-            if (sampledict != keydict) de = dictFind(keydict, key);
+            if (sampledict != keydict) 
+				de = dictFind(keydict, key);
             o = dictGetVal(de);
         }
 
         /* Calculate the idle time according to the policy. This is called
          * idle just because the code initially handled LRU, but is in fact
          * just a score where an higher score means better candidate. */
-        if (server.maxmemory_policy & MAXMEMORY_FLAG_LRU) {
+        if (server.maxmemory_policy & MAXMEMORY_FLAG_LRU) 
+		{
             idle = estimateObjectIdleTime(o);
-        } else if (server.maxmemory_policy & MAXMEMORY_FLAG_LFU) {
+        } 
+		else if (server.maxmemory_policy & MAXMEMORY_FLAG_LFU) 
+		{
             /* When we use an LRU policy, we sort the keys by idle time
              * so that we expire keys starting from greater idle time.
              * However when the policy is an LFU one, we have a frequency
@@ -218,11 +222,15 @@ void evictionPoolPopulate
              * first. So inside the pool we put objects using the inverted
              * frequency subtracting the actual frequency to the maximum
              * frequency of 255. */
-            idle = 255-LFUDecrAndReturn(o);
-        } else if (server.maxmemory_policy == MAXMEMORY_VOLATILE_TTL) {
+            idle = 255 - LFUDecrAndReturn(o);
+        }
+		else if (server.maxmemory_policy == MAXMEMORY_VOLATILE_TTL) 
+		{
             /* In this case the sooner the expire the better. */
             idle = ULLONG_MAX - (long)dictGetVal(de);
-        } else {
+        }
+		else 
+		{
             serverPanic("Unknown eviction policy in evictionPoolPopulate()");
         }
 
@@ -230,35 +238,46 @@ void evictionPoolPopulate
          * First, find the first empty bucket or the first populated
          * bucket that has an idle time smaller than our idle time. */
         k = 0;
-        while (k < EVPOOL_SIZE &&
-               pool[k].key &&
-               pool[k].idle < idle) k++;
-        if (k == 0 && pool[EVPOOL_SIZE-1].key != NULL) {
+        while (k < EVPOOL_SIZE && pool[k].key && pool[k].idle < idle) 
+        	k++;
+
+		/* 若某个key比池中所有key的idle时间都小且没有空间容纳了，这个key就不用管了 */
+        if (k == 0 && pool[EVPOOL_SIZE - 1].key != NULL) 
+		{
             /* Can't insert if the element is < the worst element we have
              * and there are no empty buckets. */
             continue;
-        } else if (k < EVPOOL_SIZE && pool[k].key == NULL) {
+        } 
+		/* 此位置没有key，可以直接插入 */
+		else if (k < EVPOOL_SIZE && pool[k].key == NULL) 
+		{
             /* Inserting into empty position. No setup needed before insert. */
-        } else {
+        } 
+		else 
+		{
             /* Inserting in the middle. Now k points to the first element
              * greater than the element to insert.  */
-            if (pool[EVPOOL_SIZE-1].key == NULL) {
+            if (pool[EVPOOL_SIZE - 1].key == NULL) 
+			{
                 /* Free space on the right? Insert at k shifting
                  * all the elements from k to end to the right. */
 
                 /* Save SDS before overwriting. */
-                sds cached = pool[EVPOOL_SIZE-1].cached;
-                memmove(pool+k+1,pool+k,
-                    sizeof(pool[0])*(EVPOOL_SIZE-k-1));
+                sds cached = pool[EVPOOL_SIZE - 1].cached;
+                memmove(pool + k + 1, pool + k, sizeof(pool[0]) * (EVPOOL_SIZE - k - 1));
                 pool[k].cached = cached;
-            } else {
+            } 
+			else 
+			{
                 /* No free space on right? Insert at k-1 */
                 k--;
                 /* Shift all elements on the left of k (included) to the
                  * left, so we discard the element with smaller idle time. */
-                sds cached = pool[0].cached; /* Save SDS before overwriting. */
-                if (pool[0].key != pool[0].cached) sdsfree(pool[0].key);
-                memmove(pool,pool+1,sizeof(pool[0])*k);
+                sds cached = pool[0].cached; 		/* Save SDS before overwriting. */
+                if (pool[0].key != pool[0].cached) 
+					sdsfree(pool[0].key);
+				
+                memmove(pool, pool + 1, sizeof(pool[0]) * k);
                 pool[k].cached = cached;
             }
         }
@@ -268,13 +287,17 @@ void evictionPoolPopulate
          * (according to the profiler, not my fantasy. Remember:
          * premature optimizbla bla bla bla. */
         int klen = sdslen(key);
-        if (klen > EVPOOL_CACHED_SDS_SIZE) {
+        if (klen > EVPOOL_CACHED_SDS_SIZE) 
+		{
             pool[k].key = sdsdup(key);
-        } else {
-            memcpy(pool[k].cached,key,klen+1);
-            sdssetlen(pool[k].cached,klen);
+        } 
+		else 
+		{
+            memcpy(pool[k].cached, key, klen + 1);
+            sdssetlen(pool[k].cached, klen);
             pool[k].key = pool[k].cached;
         }
+		
         pool[k].idle = idle;
         pool[k].dbid = dbid;
     }
@@ -320,29 +343,39 @@ void evictionPoolPopulate
 /* Return the current time in minutes, just taking the least significant
  * 16 bits. The returned time is suitable to be stored as LDT (last decrement
  * time) for the LFU implementation. */
-unsigned long LFUGetTimeInMinutes(void) {
-    return (server.unixtime/60) & 65535;
+unsigned long LFUGetTimeInMinutes(void) 
+{
+    return (server.unixtime / 60) & 65535;
 }
 
 /* Given an object last access time, compute the minimum number of minutes
  * that elapsed since the last access. Handle overflow (ldt greater than
  * the current 16 bits minutes time) considering the time as wrapping
  * exactly once. */
-unsigned long LFUTimeElapsed(unsigned long ldt) {
+unsigned long LFUTimeElapsed(unsigned long ldt) 
+{
     unsigned long now = LFUGetTimeInMinutes();
-    if (now >= ldt) return now-ldt;
-    return 65535-ldt+now;
+    if (now >= ldt)
+		return now - ldt;
+    return 65535 - ldt + now;
 }
 
 /* Logarithmically increment a counter. The greater is the current counter value
  * the less likely is that it gets really implemented. Saturate it at 255. */
-uint8_t LFULogIncr(uint8_t counter) {
-    if (counter == 255) return 255;
-    double r = (double)rand()/RAND_MAX;
+uint8_t LFULogIncr(uint8_t counter) 
+{
+    if (counter == 255) 
+		return 255;
+	
+    double r = (double)rand() / RAND_MAX;
     double baseval = counter - LFU_INIT_VAL;
-    if (baseval < 0) baseval = 0;
-    double p = 1.0/(baseval*server.lfu_log_factor+1);
-    if (r < p) counter++;
+    if (baseval < 0) 
+		baseval = 0;
+	
+    double p = 1.0 / (baseval * server.lfu_log_factor + 1);
+    if (r < p) 
+		counter++;
+	
     return counter;
 }
 
@@ -356,12 +389,17 @@ uint8_t LFULogIncr(uint8_t counter) {
  * This function is used in order to scan the dataset for the best object
  * to fit: as we check for the candidate, we incrementally decrement the
  * counter of the scanned objects if needed. */
-unsigned long LFUDecrAndReturn(robj *o) {
+unsigned long LFUDecrAndReturn(robj *o) 
+{
+	/* 复用了lru的字段，要取出来 */
     unsigned long ldt = o->lru >> 8;
     unsigned long counter = o->lru & 255;
-    unsigned long num_periods = server.lfu_decay_time ? LFUTimeElapsed(ldt) / server.lfu_decay_time : 0;
+    unsigned long num_periods = server.lfu_decay_time ? 
+		LFUTimeElapsed(ldt) / server.lfu_decay_time : 0;
+	
     if (num_periods)
         counter = (num_periods > counter) ? 0 : counter - num_periods;
+	
     return counter;
 }
 
@@ -373,27 +411,34 @@ unsigned long LFUDecrAndReturn(robj *o) {
 /* We don't want to count AOF buffers and slaves output buffers as
  * used memory: the eviction should use mostly data size. This function
  * returns the sum of AOF and slaves buffer. */
-size_t freeMemoryGetNotCountedMemory(void) {
+size_t freeMemoryGetNotCountedMemory(void) 
+{
     size_t overhead = 0;
     int slaves = listLength(server.slaves);
 
-    if (slaves) {
+    if (slaves) 
+	{
         listIter li;
         listNode *ln;
 
-        listRewind(server.slaves,&li);
-        while((ln = listNext(&li))) {
+        listRewind(server.slaves, &li);
+        while((ln = listNext(&li))) 
+		{
             client *slave = listNodeValue(ln);
             overhead += getClientOutputBufferMemoryUsage(slave);
         }
     }
-    if (server.aof_state != AOF_OFF) {
-        overhead += sdslen(server.aof_buf)+aofRewriteBufferSize();
+	
+    if (server.aof_state != AOF_OFF) 
+	{
+        overhead += sdslen(server.aof_buf) + aofRewriteBufferSize();
     }
+
     return overhead;
 }
 
-int freeMemoryIfNeeded(void) {
+int freeMemoryIfNeeded(void) 
+{
     size_t mem_reported, mem_used, mem_tofree, mem_freed;
     mstime_t latency, eviction_latency;
     long long delta;
@@ -402,21 +447,24 @@ int freeMemoryIfNeeded(void) {
     /* When clients are paused the dataset should be static not just from the
      * POV of clients not being able to write, but also from the POV of
      * expires and evictions of keys not being performed. */
-    if (clientsArePaused()) return C_OK;
+    if (clientsArePaused()) 
+		return C_OK;
 
     /* Check if we are over the memory usage limit. If we are not, no need
      * to subtract the slaves output buffers. We can just return ASAP. */
     mem_reported = zmalloc_used_memory();
-    if (mem_reported <= server.maxmemory) return C_OK;
+    if (mem_reported <= server.maxmemory)
+		return C_OK;
 
     /* Remove the size of slaves output buffers and AOF buffer from the
      * count of used memory. */
     mem_used = mem_reported;
     size_t overhead = freeMemoryGetNotCountedMemory();
-    mem_used = (mem_used > overhead) ? mem_used-overhead : 0;
+    mem_used = (mem_used > overhead) ? mem_used - overhead : 0;
 
     /* Check if we are still over the memory limit. */
-    if (mem_used <= server.maxmemory) return C_OK;
+    if (mem_used <= server.maxmemory) 
+		return C_OK;
 
     /* Compute how much memory we need to free. */
     mem_tofree = mem_used - server.maxmemory;
@@ -426,7 +474,8 @@ int freeMemoryIfNeeded(void) {
         goto cant_free; /* We need to free memory, but policy forbids. */
 
     latencyStartMonitor(latency);
-    while (mem_freed < mem_tofree) {
+    while (mem_freed < mem_tofree) 
+	{
         int j, k, i, keys_freed = 0;
         static int next_db = 0;
         sds bestkey = NULL;
@@ -435,53 +484,64 @@ int freeMemoryIfNeeded(void) {
         dict *dict;
         dictEntry *de;
 
-        if (server.maxmemory_policy & (MAXMEMORY_FLAG_LRU|MAXMEMORY_FLAG_LFU) ||
-            server.maxmemory_policy == MAXMEMORY_VOLATILE_TTL)
+        if (server.maxmemory_policy & (MAXMEMORY_FLAG_LRU | MAXMEMORY_FLAG_LFU) ||
+            	server.maxmemory_policy == MAXMEMORY_VOLATILE_TTL)
         {
             struct evictionPoolEntry *pool = EvictionPoolLRU;
 
-            while(bestkey == NULL) {
+            while (bestkey == NULL) 
+			{
                 unsigned long total_keys = 0, keys;
 
                 /* We don't want to make local-db choices when expiring keys,
                  * so to start populate the eviction pool sampling keys from
                  * every DB. */
-                for (i = 0; i < server.dbnum; i++) {
-                    db = server.db+i;
+                for (i = 0; i < server.dbnum; i++) 
+				{
+                    db = server.db + i;
                     dict = (server.maxmemory_policy & MAXMEMORY_FLAG_ALLKEYS) ?
                             db->dict : db->expires;
-                    if ((keys = dictSize(dict)) != 0) {
+                    if ((keys = dictSize(dict)) != 0)
+					{
                         evictionPoolPopulate(i, dict, db->dict, pool);
                         total_keys += keys;
                     }
                 }
-                if (!total_keys) break; /* No keys to evict. */
+                if (!total_keys) 
+					break; /* No keys to evict. */
 
                 /* Go backward from best to worst element to evict. */
-                for (k = EVPOOL_SIZE-1; k >= 0; k--) {
-                    if (pool[k].key == NULL) continue;
+                for (k = EVPOOL_SIZE - 1; k >= 0; k--) 
+				{
+                    if (pool[k].key == NULL) 
+						continue;
                     bestdbid = pool[k].dbid;
 
-                    if (server.maxmemory_policy & MAXMEMORY_FLAG_ALLKEYS) {
-                        de = dictFind(server.db[pool[k].dbid].dict,
-                            pool[k].key);
-                    } else {
-                        de = dictFind(server.db[pool[k].dbid].expires,
-                            pool[k].key);
+                    if (server.maxmemory_policy & MAXMEMORY_FLAG_ALLKEYS)
+					{
+                        de = dictFind(server.db[pool[k].dbid].dict, pool[k].key);
+                    } 
+					else 
+					{
+                        de = dictFind(server.db[pool[k].dbid].expires, pool[k].key);
                     }
 
                     /* Remove the entry from the pool. */
                     if (pool[k].key != pool[k].cached)
                         sdsfree(pool[k].key);
+					
                     pool[k].key = NULL;
                     pool[k].idle = 0;
 
                     /* If the key exists, is our pick. Otherwise it is
                      * a ghost and we need to try the next element. */
-                    if (de) {
+                    if (de) 
+					{
                         bestkey = dictGetKey(de);
                         break;
-                    } else {
+                    } 
+					else 
+					{
                         /* Ghost... Iterate again. */
                     }
                 }
@@ -495,12 +555,14 @@ int freeMemoryIfNeeded(void) {
             /* When evicting a random key, we try to evict a key for
              * each DB, so we use the static 'next_db' variable to
              * incrementally visit all DBs. */
-            for (i = 0; i < server.dbnum; i++) {
+            for (i = 0; i < server.dbnum; i++) 
+			{
                 j = (++next_db) % server.dbnum;
-                db = server.db+j;
+                db = server.db + j;
                 dict = (server.maxmemory_policy == MAXMEMORY_ALLKEYS_RANDOM) ?
                         db->dict : db->expires;
-                if (dictSize(dict) != 0) {
+                if (dictSize(dict) != 0) 
+				{
                     de = dictGetRandomKey(dict);
                     bestkey = dictGetKey(de);
                     bestdbid = j;
@@ -510,10 +572,11 @@ int freeMemoryIfNeeded(void) {
         }
 
         /* Finally remove the selected key. */
-        if (bestkey) {
+        if (bestkey) 
+		{
             db = server.db+bestdbid;
-            robj *keyobj = createStringObject(bestkey,sdslen(bestkey));
-            propagateExpire(db,keyobj,server.lazyfree_lazy_eviction);
+            robj *keyobj = createStringObject(bestkey, sdslen(bestkey));
+            propagateExpire(db,keyobj, server.lazyfree_lazy_eviction);
             /* We compute the amount of memory freed by db*Delete() alone.
              * It is possible that actually the memory needed to propagate
              * the DEL in AOF and replication link is greater than the one
@@ -522,20 +585,21 @@ int freeMemoryIfNeeded(void) {
              *
              * AOF and Output buffer memory will be freed eventually so
              * we only care about memory used by the key space. */
-            delta = (long long) zmalloc_used_memory();
+            delta = (long long)zmalloc_used_memory();
             latencyStartMonitor(eviction_latency);
+			
             if (server.lazyfree_lazy_eviction)
                 dbAsyncDelete(db,keyobj);
             else
                 dbSyncDelete(db,keyobj);
+			
             latencyEndMonitor(eviction_latency);
             latencyAddSampleIfNeeded("eviction-del",eviction_latency);
             latencyRemoveNestedEvent(latency,eviction_latency);
-            delta -= (long long) zmalloc_used_memory();
+            delta -= (long long)zmalloc_used_memory();
             mem_freed += delta;
             server.stat_evictedkeys++;
-            notifyKeyspaceEvent(NOTIFY_EVICTED, "evicted",
-                keyobj, db->id);
+            notifyKeyspaceEvent(NOTIFY_EVICTED, "evicted", keyobj, db->id);
             decrRefCount(keyobj);
             keys_freed++;
 
@@ -543,7 +607,8 @@ int freeMemoryIfNeeded(void) {
              * start spending so much time here that is impossible to
              * deliver data to the slaves fast enough, so we force the
              * transmission here inside the loop. */
-            if (slaves) flushSlavesOutputBuffers();
+            if (slaves) 
+				flushSlavesOutputBuffers();
 
             /* Normally our stop condition is the ability to release
              * a fixed, pre-computed amount of memory. However when we
@@ -552,7 +617,8 @@ int freeMemoryIfNeeded(void) {
              * memory, since the "mem_freed" amount is computed only
              * across the dbAsyncDelete() call, while the thread can
              * release the memory all the time. */
-            if (server.lazyfree_lazy_eviction && !(keys_freed % 16)) {
+            if (server.lazyfree_lazy_eviction && !(keys_freed % 16)) 
+			{
                 overhead = freeMemoryGetNotCountedMemory();
                 mem_used = zmalloc_used_memory();
                 mem_used = (mem_used > overhead) ? mem_used-overhead : 0;
@@ -562,7 +628,8 @@ int freeMemoryIfNeeded(void) {
             }
         }
 
-        if (!keys_freed) {
+        if (!keys_freed) 
+		{
             latencyEndMonitor(latency);
             latencyAddSampleIfNeeded("eviction-cycle",latency);
             goto cant_free; /* nothing to free... */

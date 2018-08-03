@@ -217,9 +217,10 @@ char *zstrdup(const char *s) {
 }
 
 /* 返回实际使用的内存大小 */
-size_t zmalloc_used_memory(void) {
+size_t zmalloc_used_memory(void) 
+{
     size_t um;
-    atomicGet(used_memory,um);
+    atomicGet(used_memory, um);
     return um;
 }
 

@@ -1834,12 +1834,13 @@ void rewriteClientCommandArgument(client *c, int i, robj *newval) {
  * Note: this function is very fast so can be called as many time as
  * the caller wishes. The main usage of this function currently is
  * enforcing the client output length limits. */
-unsigned long getClientOutputBufferMemoryUsage(client *c) {
-    unsigned long list_item_size = sizeof(listNode)+5;
+unsigned long getClientOutputBufferMemoryUsage(client *c) 
+{
+    unsigned long list_item_size = sizeof(listNode) + 5;
     /* The +5 above means we assume an sds16 hdr, may not be true
      * but is not going to be a problem. */
 
-    return c->reply_bytes + (list_item_size*listLength(c->reply));
+    return c->reply_bytes + (list_item_size * listLength(c->reply));
 }
 
 /* Get the class of a client, used in order to enforce limits to different
