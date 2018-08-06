@@ -41,7 +41,8 @@
  * recompress: 1 bit, bool, true if node is temporarry decompressed for usage.
  * attempted_compress: 1 bit, boolean, used for verifying during testing.
  * extra: 12 bits, free for future use; pads out the remainder of 32 bits */
-typedef struct quicklistNode {
+typedef struct quicklistNode 
+{
     struct quicklistNode *prev;
     struct quicklistNode *next;
     unsigned char *zl;
@@ -52,17 +53,18 @@ typedef struct quicklistNode {
     unsigned int recompress : 1; /* was this node previous compressed? */
     unsigned int attempted_compress : 1; /* node can't compress; too small */
     unsigned int extra : 10; /* more bits to steal for future usage */
-} quicklistNode;
+}quicklistNode;
 
 /* quicklistLZF is a 4+N byte struct holding 'sz' followed by 'compressed'.
  * 'sz' is byte length of 'compressed' field.
  * 'compressed' is LZF data with total (compressed) length 'sz'
  * NOTE: uncompressed length is stored in quicklistNode->sz.
  * When quicklistNode->zl is compressed, node->zl points to a quicklistLZF */
-typedef struct quicklistLZF {
+typedef struct quicklistLZF 
+{
     unsigned int sz; /* LZF size in bytes*/
     char compressed[];
-} quicklistLZF;
+}quicklistLZF;
 
 /* quicklist is a 40 byte struct (on 64-bit systems) describing a quicklist.
  * 'count' is the number of total entries.

@@ -80,6 +80,8 @@ unsigned int getLRUClock(void)
 unsigned int LRU_CLOCK(void)
 {
     unsigned int lruclock;
+
+	/* rediculous, how can 1000 / int > 1000? */
     if (1000 / server.hz <= LRU_CLOCK_RESOLUTION) 
 	{
         atomicGet(server.lruclock, lruclock);
@@ -102,6 +104,7 @@ unsigned long long estimateObjectIdleTime(robj *o)
 	{
         return (lruclock - o->lru) * LRU_CLOCK_RESOLUTION;
     }
+	/* 回绕 */
 	else 
 	{
         return (lruclock + (LRU_CLOCK_MAX - o->lru)) * LRU_CLOCK_RESOLUTION;
@@ -263,6 +266,7 @@ void evictionPoolPopulate
                  * all the elements from k to end to the right. */
 
                 /* Save SDS before overwriting. */
+				/* cached使用指针访问的，不处理的话，memmove之后最后一个cached就访问不到了 */
                 sds cached = pool[EVPOOL_SIZE - 1].cached;
                 memmove(pool + k + 1, pool + k, sizeof(pool[0]) * (EVPOOL_SIZE - k - 1));
                 pool[k].cached = cached;
@@ -274,6 +278,7 @@ void evictionPoolPopulate
                 /* Shift all elements on the left of k (included) to the
                  * left, so we discard the element with smaller idle time. */
                 sds cached = pool[0].cached; 		/* Save SDS before overwriting. */
+				/* 这种情况是key超长导致cached装不下，给key申请了额外的内存，要释放掉 */
                 if (pool[0].key != pool[0].cached) 
 					sdsfree(pool[0].key);
 				
@@ -379,7 +384,7 @@ uint8_t LFULogIncr(uint8_t counter)
     return counter;
 }
 
-/* If the object decrement time is reached decrement the LFU counter but
+/* If the object decrement time is reached, decrement the LFU counter but
  * do not update LFU fields of the object, we update the access time
  * and counter in an explicit way when the object is really accessed.
  * And we will times halve the counter according to the times of
@@ -530,7 +535,7 @@ int freeMemoryIfNeeded(void)
                     if (pool[k].key != pool[k].cached)
                         sdsfree(pool[k].key);
 					
-                    pool[k].key = NULL;
+                    pool[k].key  = NULL;
                     pool[k].idle = 0;
 
                     /* If the key exists, is our pick. Otherwise it is
@@ -547,7 +552,6 @@ int freeMemoryIfNeeded(void)
                 }
             }
         }
-
         /* volatile-random and allkeys-random policy */
         else if (server.maxmemory_policy == MAXMEMORY_ALLKEYS_RANDOM ||
                  server.maxmemory_policy == MAXMEMORY_VOLATILE_RANDOM)
@@ -574,9 +578,9 @@ int freeMemoryIfNeeded(void)
         /* Finally remove the selected key. */
         if (bestkey) 
 		{
-            db = server.db+bestdbid;
+            db = server.db + bestdbid;
             robj *keyobj = createStringObject(bestkey, sdslen(bestkey));
-            propagateExpire(db,keyobj, server.lazyfree_lazy_eviction);
+            propagateExpire(db, keyobj, server.lazyfree_lazy_eviction);
             /* We compute the amount of memory freed by db*Delete() alone.
              * It is possible that actually the memory needed to propagate
              * the DEL in AOF and replication link is greater than the one
@@ -594,8 +598,8 @@ int freeMemoryIfNeeded(void)
                 dbSyncDelete(db,keyobj);
 			
             latencyEndMonitor(eviction_latency);
-            latencyAddSampleIfNeeded("eviction-del",eviction_latency);
-            latencyRemoveNestedEvent(latency,eviction_latency);
+            latencyAddSampleIfNeeded("eviction-del", eviction_latency);
+            latencyRemoveNestedEvent(latency, eviction_latency);
             delta -= (long long)zmalloc_used_memory();
             mem_freed += delta;
             server.stat_evictedkeys++;
