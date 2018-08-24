@@ -589,23 +589,25 @@ redisReader *redisReaderCreate(void) {
     return redisReaderCreateWithFunctions(&defaultFunctions);
 }
 
-static redisContext *redisContextInit(void) {
+static redisContext *redisContextInit(void) 
+{
     redisContext *c;
 
-    c = calloc(1,sizeof(redisContext));
+    c = calloc(1, sizeof(redisContext));
     if (c == NULL)
         return NULL;
 
-    c->err = 0;
-    c->errstr[0] = '\0';
-    c->obuf = sdsempty();
-    c->reader = redisReaderCreate();
-    c->tcp.host = NULL;
+    c->err 			   = 0;
+    c->errstr[0] 	   = '\0';
+    c->obuf			   = sdsempty();
+    c->reader 		   = redisReaderCreate();
+    c->tcp.host 	   = NULL;
     c->tcp.source_addr = NULL;
-    c->unix_sock.path = NULL;
-    c->timeout = NULL;
+    c->unix_sock.path  = NULL;
+    c->timeout		   = NULL;
 
-    if (c->obuf == NULL || c->reader == NULL) {
+    if (c->obuf == NULL || c->reader == NULL) 
+	{
         redisFree(c);
         return NULL;
     }
@@ -671,7 +673,8 @@ int redisReconnect(redisContext *c) {
 /* Connect to a Redis instance. On error the field error in the returned
  * context will be set to the return value of the error function.
  * When no set of reply functions is given, the default set will be used. */
-redisContext *redisConnect(const char *ip, int port) {
+redisContext *redisConnect(const char *ip, int port) 
+{
     redisContext *c;
 
     c = redisContextInit();
@@ -679,7 +682,7 @@ redisContext *redisConnect(const char *ip, int port) {
         return NULL;
 
     c->flags |= REDIS_BLOCK;
-    redisContextConnectTcp(c,ip,port,NULL);
+    redisContextConnectTcp(c, ip, port, NULL);
     return c;
 }
 
