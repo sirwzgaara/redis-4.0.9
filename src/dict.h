@@ -53,10 +53,11 @@ typedef struct dictEntry
         uint64_t u64;
         int64_t s64;
         double d;
-    } v;
+    }v;
     struct dictEntry *next;
 }dictEntry;
 
+/* dict的方法集 */
 typedef struct dictType 
 {
     uint64_t (*hashFunction)(const void *key);
